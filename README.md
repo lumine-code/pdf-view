@@ -1,112 +1,108 @@
-# pdf-viewer
+# pdf-view
 
-View PDF files directly in Pulsar. Based on Mozilla's PDF.js with theme integration, SyncTeX support, and document outline.
-
-![title-pic](https://github.com/asiloisad/pulsar-pdf-viewer/blob/master/assets/title-pic.png?raw=true)
+View PDF files directly in Lumine, built on Mozilla's PDF.js with theme integration, SyncTeX support, and a document outline.
 
 ## Features
 
-- **PDF.js integration**: Full-featured PDF viewing in editor panes.
-- **Theme support**: Adapts to Pulsar UI and syntax themes.
-- **Auto-reload**: Watches for file changes and refreshes automatically.
-- **LaTeX integration**: Compile `.tex` files and SyncTeX support via [latex-tools](https://github.com/asiloisad/pulsar-latex-tools).
-- **Typst integration**: Compile `.typ` files via [typst-tools](https://github.com/asiloisad/pulsar-typst-tools).
-- **Build coordination**: Pauses auto-refresh during builds and reloads on completion.
-- **Document outline**: Navigate via [navigation-panel](https://github.com/asiloisad/pulsar-navigation-panel).
-- **Scrollmap**: Shows PDF outline markers on the scrollbar when [scrollmap](https://github.com/asiloisad/pulsar-scrollmap) is installed.
-- **SOFiSTiK help**: Search keywords at current scope via [sofistik-tools](https://github.com/asiloisad/pulsar-sofistik-tools).
+- **PDF.js viewer**: renders pdf files in editor panes with Mozilla's PDF.js.
+- **Theme integration**: mirrors the active Lumine UI and syntax theme colors into the viewer.
+- **Auto-reload**: watches the file on disk and refreshes when it changes.
+- **LaTeX and Typst**: compiles `.tex` and `.typ` sources and follows SyncTeX jumps when the matching tools packages are installed.
+- **Build coordination**: pauses auto-refresh during a compile and reloads once the build finishes.
+- **Document outline**: exposes the pdf outline to the navigation panel and tracks the active section while scrolling.
+- **Scrollmap**: draws outline markers on the scrollbar when the scrollmap package is available.
 
 ## Installation
 
-To install `pdf-viewer` search for [pdf-viewer](https://web.pulsar-edit.dev/packages/pdf-viewer) in the Install pane of the Pulsar settings or run `ppm install pdf-viewer`. Alternatively, you can run `ppm install asiloisad/pulsar-pdf-viewer` to install a package directly from the GitHub repository.
+Install `pdf-view` from the Install pane in the Lumine settings, or from the command line:
+
+```sh
+lumine --install lumine-code/pdf-view
+```
 
 ## Commands
 
 Commands available in `atom-workspace`:
 
-- `pdf-viewer:reload-all`: reload all open PDF viewers.
+- `pdf-view:reload-all`: reload all open PDF viewers.
 
-Commands available in `.pdf-viewer`:
+Commands available in `.pdf-view`:
 
-- `pdf-viewer:refresh`: refresh content for the current viewer,
-- `pdf-viewer:toggle-refreshing`: toggle auto-refresh for the current viewer,
-- `pdf-viewer:compile`: compile the source `.typ` or `.tex` file,
-- `pdf-viewer:open-tex`: open the corresponding `.typ` or `.tex` source file,
-- `pdf-viewer:next-page`: go to the next page,
-- `pdf-viewer:previous-page`: go to the previous page,
-- `pdf-viewer:first-page`: go to the first page,
-- `pdf-viewer:last-page`: go to the last page,
-- `pdf-viewer:scroll-up`: scroll up,
-- `pdf-viewer:scroll-down`: scroll down,
-- `pdf-viewer:scroll-left`: scroll left,
-- `pdf-viewer:scroll-right`: scroll right,
-- `pdf-viewer:page-up`: scroll up by one viewport,
-- `pdf-viewer:page-down`: scroll down by one viewport,
-- `pdf-viewer:zoom-in`: zoom in,
-- `pdf-viewer:zoom-out`: zoom out,
-- `pdf-viewer:zoom-reset`: reset zoom,
-- `pdf-viewer:rotate-clockwise`: rotate clockwise,
-- `pdf-viewer:rotate-counterclockwise`: rotate counterclockwise,
-- `pdf-viewer:select-tool`: enable the text selection tool,
-- `pdf-viewer:hand-tool`: enable the hand tool,
-- `pdf-viewer:find`: open find,
-- `pdf-viewer:find-next`: find next match,
-- `pdf-viewer:find-previous`: find previous match,
-- `pdf-viewer:copy`: copy the selected text to the clipboard,
-- `pdf-viewer:toggle-sidebar`: toggle the PDF sidebar,
-- `pdf-viewer:presentation-mode`: enter presentation mode,
-- `pdf-viewer:download`: download the PDF,
-- `pdf-viewer:print`: print the PDF.
+- `pdf-view:refresh`: refresh content for the current viewer,
+- `pdf-view:toggle-refreshing`: toggle auto-refresh for the current viewer,
+- `pdf-view:compile`: compile the source `.typ` or `.tex` file,
+- `pdf-view:open-tex`: open the corresponding `.typ` or `.tex` source file,
+- `pdf-view:next-page`: go to the next page,
+- `pdf-view:previous-page`: go to the previous page,
+- `pdf-view:first-page`: go to the first page,
+- `pdf-view:last-page`: go to the last page,
+- `pdf-view:scroll-up`: scroll up,
+- `pdf-view:scroll-down`: scroll down,
+- `pdf-view:scroll-left`: scroll left,
+- `pdf-view:scroll-right`: scroll right,
+- `pdf-view:page-up`: scroll up by one viewport,
+- `pdf-view:page-down`: scroll down by one viewport,
+- `pdf-view:zoom-in`: zoom in,
+- `pdf-view:zoom-out`: zoom out,
+- `pdf-view:zoom-reset`: reset zoom,
+- `pdf-view:rotate-clockwise`: rotate clockwise,
+- `pdf-view:rotate-counterclockwise`: rotate counterclockwise,
+- `pdf-view:select-tool`: enable the text selection tool,
+- `pdf-view:hand-tool`: enable the hand tool,
+- `pdf-view:find`: open find,
+- `pdf-view:find-next`: find next match,
+- `pdf-view:find-previous`: find previous match,
+- `pdf-view:copy`: copy the selected text to the clipboard,
+- `pdf-view:toggle-sidebar`: toggle the PDF sidebar,
+- `pdf-view:presentation-mode`: enter presentation mode,
+- `pdf-view:download`: download the PDF,
+- `pdf-view:print`: print the PDF.
 
 ## Style
 
-The style of the documents has been adapted to match the theme in Pulsar. As the style changes, you may notice the menu colors change.
+The viewer adapts its colors to the active Lumine theme. When the theme changes, the viewer's menu and chrome colors update to match.
 
 ## Document outline
 
-The viewer supports the [navigation-panel](https://github.com/asiloisad/pulsar-navigation-panel) package via the `navigation-adapter` service. You can search through the document using the all-in outline tree instead of the PDFjs outline. Scroll position is tracked and the active section is highlighted in the panel.
+The viewer exposes its document outline through the `navigation-adapter` service, so a navigation panel can search the outline tree instead of the built-in PDF.js outline. Scroll position is tracked and the active section is highlighted in the panel.
 
 ## URI options
 
-The package supports additional options when opening a PDF. These options allow you to open a PDF on a specific page, set the initial zoom level, open the file to a named destination, or select a sidebar state. For more information, see [pdf.js viewer options](https://github.com/mozilla/pdf.js/wiki/Viewer-options).
+The viewer accepts additional options when opening a PDF: open on a specific page, set the initial zoom level, jump to a named destination, or choose a sidebar state. For more information, see [pdf.js viewer options](https://github.com/mozilla/pdf.js/wiki/Viewer-options).
 
 ## LaTeX
 
-This package integrates with [latex-tools](https://github.com/asiloisad/pulsar-latex-tools) for compilation and SyncTeX support:
+With a `latex-tools` package installed, the viewer integrates compilation and SyncTeX support:
 
-- **Compile**: Use directly from the PDF viewer to compile the corresponding `.tex` file.
-- **Forward SyncTeX** (source → PDF): Use synctex trigger from the editor.
-- **Backward SyncTeX** (PDF → source): Right-click on a location in the PDF.
-- **Build coordination**: Auto-refresh pauses during compilation and resumes when the build finishes.
+- **Compile**: compile the corresponding `.tex` file directly from the viewer.
+- **Forward SyncTeX** (source → PDF): triggered from the editor.
+- **Backward SyncTeX** (PDF → source): right-click a location in the PDF.
+- **Build coordination**: auto-refresh pauses during compilation and resumes when the build finishes.
 
-For PDF files created by TeX using the `--synctex=1` option, clicking on the PDF will take you to the corresponding source code. The `synctex` binary path can be configured in the latex-tools package settings.
+For PDF files created by TeX using the `--synctex=1` option, clicking on the PDF jumps to the corresponding source code.
 
 ## Typst
 
-This package integrates with [typst-tools](https://github.com/asiloisad/pulsar-typst-tools) for compilation:
+With a `typst-tools` package installed, the viewer integrates Typst compilation:
 
-- **Compile**: Use directly from the PDF viewer to compile the corresponding `.typ` file.
-- **Open source**: Use `pdf-viewer:open-tex` to open the `.typ` source file.
-- **Build coordination**: Auto-refresh pauses during compilation and resumes when the build finishes.
+- **Compile**: compile the corresponding `.typ` file directly from the viewer.
+- **Open source**: use `pdf-view:open-tex` to open the `.typ` source file.
+- **Build coordination**: auto-refresh pauses during compilation and resumes when the build finishes.
 
 When both `.typ` and `.tex` source files exist, the Typst source takes priority.
 
-## SOFiSTiK
+## Provided Service `pdf-view`
 
-This package is adapted to support `sofistik-tools` for help functions using search keywords at the current scope. For more information, see the [sofistik-tools](https://github.com/asiloisad/pulsar-sofistik-tools) package.
-
-## Provided Service `pdf-viewer`
-
-Allows other packages to manage PDF viewers programmatically. Open PDFs, observe viewer instances, scroll to destinations, and update viewer files.
+Lets other packages manage PDF viewers programmatically: open PDFs, observe viewer instances, scroll to destinations, and update viewer files.
 
 In your `package.json`:
 
 ```json
 {
   "consumedServices": {
-    "pdf-viewer": {
+    "pdf-view": {
       "versions": {
-        "1.0.0": "consumePdfViewer"
+        "1.0.0": "consumePdfView"
       }
     }
   }
@@ -116,7 +112,7 @@ In your `package.json`:
 In your main module:
 
 ```javascript
-consumePdfViewer(service) {
+consumePdfView(service) {
   // Observe all viewers (existing and new)
   this.subscriptions.add(
     service.observeViewers((viewer) => {
@@ -141,7 +137,7 @@ consumePdfViewer(service) {
 
 ## Provided Service `navigation-adapter`
 
-Exposes the PDF document outline to [navigation-panel](https://github.com/asiloisad/pulsar-navigation-panel). Registers automatically when both packages are installed.
+Exposes the PDF document outline to a navigation panel. Registers automatically when both packages are installed.
 
 In your `package.json`:
 

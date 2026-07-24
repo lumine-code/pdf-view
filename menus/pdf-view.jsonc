@@ -1,0 +1,64 @@
+{
+  // Application menu contributions. Each leaf uses the singular `command` key
+  // (Lumine's menu format), never CSON's plural `commands`.
+  "menu": [
+    {
+      "label": "Packages",
+      "submenu": [
+        {
+          "label": "PDF View",
+          "submenu": [
+            { "label": "Refresh", "command": "pdf-view:refresh" },
+            { "label": "Toggle Auto Refresh", "command": "pdf-view:toggle-refreshing" },
+            { "label": "Reload All", "command": "pdf-view:reload-all" },
+            { "type": "separator" },
+            {
+              "label": "Navigation",
+              "submenu": [
+                { "label": "Next Page", "command": "pdf-view:next-page" },
+                { "label": "Previous Page", "command": "pdf-view:previous-page" },
+                { "label": "First Page", "command": "pdf-view:first-page" },
+                { "label": "Last Page", "command": "pdf-view:last-page" },
+              ],
+            },
+            {
+              "label": "View",
+              "submenu": [
+                { "label": "Zoom In", "command": "pdf-view:zoom-in" },
+                { "label": "Zoom Out", "command": "pdf-view:zoom-out" },
+                { "label": "Reset Zoom", "command": "pdf-view:zoom-reset" },
+                { "type": "separator" },
+                { "label": "Rotate Clockwise", "command": "pdf-view:rotate-clockwise" },
+                {
+                  "label": "Rotate Counterclockwise",
+                  "command": "pdf-view:rotate-counterclockwise",
+                },
+                { "label": "Toggle Sidebar", "command": "pdf-view:toggle-sidebar" },
+                { "label": "Presentation Mode", "command": "pdf-view:presentation-mode" },
+              ],
+            },
+            {
+              "label": "Tools",
+              "submenu": [
+                { "label": "Find", "command": "pdf-view:find" },
+                { "label": "Find Next", "command": "pdf-view:find-next" },
+                { "label": "Find Previous", "command": "pdf-view:find-previous" },
+                { "type": "separator" },
+                { "label": "Text Selection Tool", "command": "pdf-view:select-tool" },
+                { "label": "Hand Tool", "command": "pdf-view:hand-tool" },
+                { "type": "separator" },
+                { "label": "Copy Selection", "command": "pdf-view:copy" },
+              ],
+            },
+            { "type": "separator" },
+            { "label": "Compile Source", "command": "pdf-view:compile" },
+            { "label": "Open Source", "command": "pdf-view:open-tex" },
+            { "type": "separator" },
+            { "label": "Download", "command": "pdf-view:download" },
+            { "label": "Print", "command": "pdf-view:print" },
+          ],
+        },
+      ],
+    },
+  ],
+}

@@ -1,6 +1,45 @@
 // supress output from pdfjs
 console.log = console.info = console.warn = console.error = () => {};
 
+// Theme bridge: viewer.css maps PDF.js's theme variables to Lumine's custom
+// properties (--text-color, --app-background-color, ...), which do not exist in
+// this iframe document. Mirror the live values from the host onto :root here.
+// Writing via CSSOM (element.style.setProperty) is allowed under the viewer's
+// `style-src 'self'` CSP, unlike injecting a <style> block. Re-sync when the
+// active theme changes; drop the subscription when this frame unloads so the
+// host ThemeManager does not retain callbacks from reloaded iframes.
+const THEME_VARS = [
+  "--text-color",
+  "--app-background-color",
+  "--tab-background-color-active",
+  "--pane-item-border-color",
+  "--background-color-highlight",
+  "--background-color-selected",
+  "--font-family",
+];
+
+function syncThemeVars() {
+  try {
+    const hostStyle = parent.getComputedStyle(parent.document.documentElement);
+    const rootStyle = document.documentElement.style;
+    for (const name of THEME_VARS) {
+      const value = hostStyle.getPropertyValue(name).trim();
+      if (value) {
+        rootStyle.setProperty(name, value);
+      }
+    }
+  } catch (e) {
+    // The host may be unreachable in some contexts; fall back to PDF.js defaults.
+  }
+}
+
+syncThemeVars();
+
+const themeSubscription = parent.atom?.themes?.onDidChangeActiveThemes?.(syncThemeVars);
+if (themeSubscription) {
+  window.addEventListener("pagehide", () => themeSubscription.dispose(), { once: true });
+}
+
 // Polyfill for Promise.try (required by PDF.js v5.4.624+, unavailable in Chromium 124)
 if (typeof Promise.try !== "function") {
   Promise.try = function (fn) {
@@ -54,11 +93,11 @@ function setupVisibilityObserver() {
 }
 
 window.onload = () => {
-  const sidebarConfig = parent.atom?.config?.get("pdf-viewer.defaultSidebar") || "none";
+  const sidebarConfig = parent.atom?.config?.get("pdf-view.defaultSidebar") || "none";
   PDFViewerApplicationOptions.set("sidebarViewOnLoad",
     { none: 0, thumbs: 1, outline: 2, attachments: 3 }[sidebarConfig] ?? 0);
   PDFViewerApplicationOptions.set("defaultZoomValue",
-    parent.atom?.config?.get("pdf-viewer.defaultZoom") || "auto");
+    parent.atom?.config?.get("pdf-view.defaultZoom") || "auto");
   PDFViewerApplicationOptions.set("enableScripting", false);
   PDFViewerApplicationOptions.set("externalLinkTarget", 4);
   PDFViewerApplicationOptions.set("isEvalSupported", false);
@@ -336,7 +375,7 @@ window.addEventListener("message", (message) => {
   }
 });
 
-let lastParams = { page: 1, zoom: parent.atom?.config?.get("pdf-viewer.defaultZoom") || "auto" };
+let lastParams = { page: 1, zoom: parent.atom?.config?.get("pdf-view.defaultZoom") || "auto" };
 
 function refreshContents(data) {
   if (window.frameElement && window.frameElement.style.display === "none") {
@@ -478,7 +517,7 @@ function findAgain(findPrevious) {
 
 function setColorInverted(state) {
   document.documentElement.classList.toggle(
-    "pdf-viewer-colors-inverted",
+    "pdf-view-colors-inverted",
     Boolean(state)
   );
 }

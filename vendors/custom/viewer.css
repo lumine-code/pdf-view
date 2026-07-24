@@ -1,0 +1,99 @@
+/* Theme integration for the PDF.js viewer iframe.
+ *
+ * This file used to be generated at runtime by compiling viewer.less against the
+ * active theme's Less variables. Lumine themes now expose their palette as CSS
+ * custom properties, so this is a static stylesheet: it maps PDF.js's own theme
+ * variables to Lumine's custom properties (--text-color, --app-background-color,
+ * ...). Those Lumine properties do not exist inside this cross-document iframe,
+ * so custom/viewer.js mirrors the live values from the host onto :root here (via
+ * CSSOM, which the viewer's `style-src 'self'` CSP allows) and keeps them in sync
+ * when the active theme changes. */
+
+* {
+  box-sizing: inherit;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-family);
+}
+
+.textLayer.selectionRendering ::-moz-selection {
+  background: transparent !important;
+  color: transparent !important;
+}
+
+.textLayer.selectionRendering ::selection {
+  background: transparent !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+:root {
+  --sidebar-width: 350px;
+  --toolbar-icon-opacity: 1;
+  --doorhanger-icon-opacity: 1;
+
+  --main-color: var(--text-color);
+  --body-bg-color: var(--app-background-color);
+  --errorWrapper-bg-color: var(--app-background-color);
+  --toolbar-icon-bg-color: var(--text-color);
+  --toolbar-icon-hover-bg-color: var(--text-color);
+
+  --sidebar-narrow-bg-color: var(--tab-background-color-active);
+  --sidebar-toolbar-bg-color: var(--tab-background-color-active);
+  --toolbar-bg-color: var(--tab-background-color-active);
+  --toolbar-border-color: var(--pane-item-border-color);
+  --button-hover-color: var(--background-color-highlight);
+  --toggled-btn-color: var(--text-color);
+  --toggled-btn-bg-color: var(--background-color-selected);
+  --toggled-hover-active-btn-color: var(--background-color-highlight);
+  --dropdown-btn-bg-color: var(--tab-background-color-active);
+  --separator-color: var(--pane-item-border-color);
+  --field-color: var(--text-color);
+  --field-bg-color: var(--tab-background-color-active);
+  --field-border-color: var(--pane-item-border-color);
+  --findbar-nextprevious-btn-bg-color: var(--tab-background-color-active);
+  --treeitem-color: var(--text-color);
+  --treeitem-hover-color: var(--text-color);
+  --treeitem-selected-color: var(--text-color);
+  --treeitem-selected-bg-color: var(--background-color-selected);
+  --sidebaritem-bg-color: var(--background-color-highlight);
+  --doorhanger-bg-color: var(--tab-background-color-active);
+  --doorhanger-border-color: var(--pane-item-border-color);
+  --doorhanger-hover-color: var(--text-color);
+  --doorhanger-hover-bg-color: var(--background-color-highlight);
+  --doorhanger-separator-color: var(--pane-item-border-color);
+  --overlay-button-bg-color: var(--tab-background-color-active);
+  --overlay-button-hover-bg-color: var(--background-color-highlight);
+}
+
+#sidebarContent {
+  background-color: var(--sidebar-narrow-bg-color);
+  border-right: solid 1px var(--toolbar-border-color);
+}
+
+.page,
+.thumbnailImage {
+  transition: filter 200ms ease-in-out;
+}
+
+.pdf-view-colors-inverted .page,
+.pdf-view-colors-inverted .thumbnailImage {
+  filter: invert(100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .thumbnailImage {
+    transition: none;
+  }
+}
+
+/* Disable Chromium's default focus outline in the PDF viewer */
+#outerContainer :focus-visible {
+  outline: none !important;
+}

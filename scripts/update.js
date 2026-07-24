@@ -11,7 +11,7 @@ const GITHUB_API = "https://api.github.com/repos/mozilla/pdf.js/releases/latest"
 function fetchJSON(url) {
   return new Promise((resolve, reject) => {
     https
-      .get(url, { headers: { "User-Agent": "pdf-viewer-updater" } }, (res) => {
+      .get(url, { headers: { "User-Agent": "pdf-view-updater" } }, (res) => {
         let data = "";
         res.on("data", (chunk) => (data += chunk));
         res.on("end", () => {
@@ -30,7 +30,7 @@ function downloadFile(url, dest) {
   return new Promise((resolve, reject) => {
     const follow = (url) => {
       https
-        .get(url, { headers: { "User-Agent": "pdf-viewer-updater" } }, (res) => {
+        .get(url, { headers: { "User-Agent": "pdf-view-updater" } }, (res) => {
           if (res.statusCode === 302 || res.statusCode === 301) {
             return follow(res.headers.location);
           }

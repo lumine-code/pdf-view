@@ -1,29 +1,38 @@
 {
-  "name": "pdf-viewer",
-  "description": "View PDF files directly in Pulsar",
+  "name": "pdf-view",
+  "author": "lumine-code",
+  "description": "View PDF files directly in Lumine",
+  "repository": "https://github.com/lumine-code/pdf-view",
+  "bugs": {
+    "url": "https://github.com/lumine-code/pdf-view/issues"
+  },
+  "homepage": "https://github.com/lumine-code/pdf-view#readme",
   "pdfjsVersion": "6.1.200",
-  "repository": "https://github.com/asiloisad/pulsar-pdf-viewer",
   "keywords": [
     "pdf",
     "viewer",
     "synctex",
     "latex",
+    "typst",
     "sofistik"
   ],
-  "version": "2.3.2",
+  "version": "3.0.0",
   "license": "MIT",
   "engines": {
     "atom": ">=1.100.0 <2.0.0"
   },
   "main": "./lib/main",
   "scripts": {
+    "test": "cd ../lumine && npm run test:only -- ../pdf-view/spec",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
     "update": "node scripts/update.js"
   },
   "deserializers": {
-    "pdf-viewer": "deserialize"
+    "pdf-view": "deserialize"
   },
   "providedServices": {
-    "pdf-viewer": {
+    "pdf-view": {
       "versions": {
         "1.0.0": "provideViewer",
         "1.1.0": "provideViewer"
@@ -56,21 +65,21 @@
     "autoRefresh": {
       "order": 1,
       "title": "Auto-reload on update",
-      "description": "Automatically reload when the file is updated. The window can be refreshed manually by press `F5` in pdf-viewer.",
+      "description": "Automatically reload when the file is updated. The window can be refreshed manually by press `F5` in pdf-view.",
       "type": "boolean",
       "default": true
     },
     "autoTime": {
       "order": 2,
       "title": "Auto-refresh delay",
-      "description": "The time in ms before reloading the pdf-viewer after the last detected change.",
+      "description": "The time in ms before reloading the pdf-view after the last detected change.",
       "type": "integer",
       "default": 1000
     },
     "closeDeleted": {
       "order": 3,
       "title": "Close panel if file deleted",
-      "description": "Set to true to automatically close the pdf-viewer when the disk file is deleted.",
+      "description": "Set to true to automatically close the pdf-view when the disk file is deleted.",
       "type": "boolean",
       "default": true
     },
@@ -150,5 +159,9 @@
       "type": "boolean",
       "default": false
     }
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "prettier": "^3.9.5"
   }
 }

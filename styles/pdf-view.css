@@ -1,45 +1,43 @@
-@import "ui-variables";
-
-.pdf-viewer {
+.pdf-view {
   border: none;
   width: 100%;
   height: 100%;
 }
 
-// Ensure the pane item container has position relative for absolute positioning
+/* Ensure the pane item container has position relative for absolute positioning */
 .item-views > .pane > .item-views {
   position: relative;
 }
 
-.pdf-viewer-scrollmap.simplemap .marker {
+.pdf-view-scrollmap.simplemap .marker {
   &.marker-pdf-h1 {
     z-index: 15;
     height: 4px;
-    background-color: @ui-site-color-1;
+    background-color: var(--ui-site-color-1);
   }
 
   &.marker-pdf-h2 {
     z-index: 14;
     height: 3px;
-    background-color: @ui-site-color-2;
+    background-color: var(--ui-site-color-2);
   }
 
   &.marker-pdf-h3 {
     z-index: 13;
     height: 3px;
-    background-color: @ui-site-color-3;
+    background-color: var(--ui-site-color-3);
   }
 
   &.marker-pdf-h4 {
     z-index: 12;
     height: 2px;
-    background-color: @ui-site-color-4;
+    background-color: var(--ui-site-color-4);
   }
 
   &.marker-pdf-h5,
   &.marker-pdf-h6 {
     z-index: 11;
     height: 2px;
-    background-color: @ui-site-color-5;
+    background-color: var(--ui-site-color-5);
   }
 }
