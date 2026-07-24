@@ -1,6 +1,6 @@
 module.exports = {
   root: true,
-  ignorePatterns: ["vendors/"],
+  ignorePatterns: ["node_modules/", "vendors/", ".dev/"],
   extends: "eslint:recommended",
   env: { es2022: true, browser: true, node: true },
   globals: { atom: "readonly" },
