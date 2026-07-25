@@ -14,11 +14,7 @@ View PDF files directly in Lumine, built on Mozilla's PDF.js with theme integrat
 
 ## Installation
 
-Install `pdf-view` from the Install pane in the Lumine settings, or from the command line:
-
-```sh
-lumine --install lumine-code/pdf-view
-```
+To install `pdf-view` search for *pdf-view* in the Install pane of the Lumine settings or run `lumine --install lumine-code/pdf-view`.
 
 ## Commands
 
