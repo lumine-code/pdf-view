@@ -1,6 +1,8 @@
 # pdf-view
 
-View PDF files directly in Lumine, built on Mozilla's PDF.js with theme integration, SyncTeX support, and a document outline.
+View PDF files directly in the editor.
+
+Built on Mozilla's PDF.js with theme integration, SyncTeX support, and a document outline.
 
 ## Features
 

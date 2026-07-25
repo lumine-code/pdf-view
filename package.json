@@ -1,7 +1,7 @@
 {
   "name": "pdf-view",
   "author": "lumine-code",
-  "description": "View PDF files directly in Lumine",
+  "description": "View PDF files directly in the editor.",
   "repository": "https://github.com/lumine-code/pdf-view",
   "bugs": {
     "url": "https://github.com/lumine-code/pdf-view/issues"
