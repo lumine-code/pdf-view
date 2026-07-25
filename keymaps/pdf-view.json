@@ -36,6 +36,6 @@
     "f4": "pdf-view:toggle-sidebar",
     "cmdorctrl-alt-p": "pdf-view:presentation-mode",
     "cmdorctrl-s": "pdf-view:download",
-    "cmdorctrl-c": "pdf-view:copy",
-  },
+    "cmdorctrl-c": "pdf-view:copy"
+  }
 }

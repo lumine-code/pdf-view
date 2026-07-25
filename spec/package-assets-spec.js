@@ -1,50 +1,49 @@
-/* global describe, it, expect */
-
 const fs = require("fs");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
 const exists = (rel) => fs.existsSync(path.join(root, rel));
-// The keymap/menu files are JSONC (JSON with comments and trailing commas).
-// Strip whole-line comments and trailing commas before JSON.parse so the tests
-// can validate their structure without pulling in a JSONC parser.
-const parseJsonc = (rel) =>
-  JSON.parse(
-    read(rel)
-      .replace(/^\s*\/\/.*$/gm, "")
-      .replace(/,(\s*[}\]])/g, "$1"),
-  );
+// The keymap/menu files are JSON that may carry // comments (Lumine's loader
+// parses them with a JSONC parser). Strip whole-line comments before JSON.parse
+// so the tests can validate their structure without pulling in a JSONC parser.
+const parseJsonc = (rel) => JSON.parse(read(rel).replace(/^\s*\/\/.*$/gm, ""));
 
-// Guards for the pdf-viewer -> pdf-view rebrand and the CSON -> JSONC / Less -> CSS
+// Guards for the pdf-viewer -> pdf-view rebrand and the CSON -> JSON / Less -> CSS
 // modernization. The package's own identifiers (name, commands, config, the
 // pdf-view provided service, deserializer, CSS classes) are renamed; the shared
 // cross-package service contracts (navigation-adapter, simplemap) are preserved.
 describe("pdf-view package assets", () => {
-  it("ships keymaps and menus as JSONC, not CSON or plain JSON", () => {
-    expect(exists("keymaps/pdf-view.jsonc")).toBe(true);
-    expect(exists("menus/pdf-view.jsonc")).toBe(true);
+  it("ships keymaps and menus as JSON (comments allowed), not CSON or JSONC", () => {
+    expect(exists("keymaps/pdf-view.json")).toBe(true);
+    expect(exists("menus/pdf-view.json")).toBe(true);
     expect(exists("keymaps/pdf-viewer.cson")).toBe(false);
     expect(exists("menus/pdf-viewer.cson")).toBe(false);
-    expect(exists("keymaps/pdf-view.json")).toBe(false);
-    expect(exists("menus/pdf-view.json")).toBe(false);
+    expect(exists("keymaps/pdf-view.jsonc")).toBe(false);
+    expect(exists("menus/pdf-view.jsonc")).toBe(false);
   });
 
   it("parses the keymap under the renamed selector and binds pdf-view commands", () => {
-    const keymap = parseJsonc("keymaps/pdf-view.jsonc");
+    const keymap = parseJsonc("keymaps/pdf-view.json");
     expect(keymap[".pdf-view"]).toBeDefined();
     expect(keymap[".pdf-viewer"]).toBeUndefined();
     expect(keymap[".pdf-view"]["f5"]).toBe("pdf-view:refresh");
-    expect(read("keymaps/pdf-view.jsonc")).not.toContain("pdf-viewer:");
+    expect(read("keymaps/pdf-view.json")).not.toContain("pdf-viewer:");
   });
 
   it("parses the menu, uses `command`, and carries no pdf-viewer commands", () => {
-    const menu = parseJsonc("menus/pdf-view.jsonc");
+    const menu = parseJsonc("menus/pdf-view.json");
     expect(Array.isArray(menu.menu)).toBe(true);
     const flat = JSON.stringify(menu);
     expect(flat).not.toContain('"commands"');
-    expect(read("menus/pdf-view.jsonc")).not.toContain("pdf-viewer:");
+    expect(read("menus/pdf-view.json")).not.toContain("pdf-viewer:");
     expect(flat).toContain("pdf-view:refresh");
+  });
+
+  it("keeps the config JSON free of trailing commas", () => {
+    // House style allows // comments but forbids trailing commas.
+    expect(read("keymaps/pdf-view.json")).not.toMatch(/,\s*[}\]]/);
+    expect(read("menus/pdf-view.json")).not.toMatch(/,\s*[}\]]/);
   });
 
   it("ships CSS stylesheets built on custom properties, not Less", () => {

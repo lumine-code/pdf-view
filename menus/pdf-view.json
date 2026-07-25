@@ -18,8 +18,8 @@
                 { "label": "Next Page", "command": "pdf-view:next-page" },
                 { "label": "Previous Page", "command": "pdf-view:previous-page" },
                 { "label": "First Page", "command": "pdf-view:first-page" },
-                { "label": "Last Page", "command": "pdf-view:last-page" },
-              ],
+                { "label": "Last Page", "command": "pdf-view:last-page" }
+              ]
             },
             {
               "label": "View",
@@ -31,11 +31,11 @@
                 { "label": "Rotate Clockwise", "command": "pdf-view:rotate-clockwise" },
                 {
                   "label": "Rotate Counterclockwise",
-                  "command": "pdf-view:rotate-counterclockwise",
+                  "command": "pdf-view:rotate-counterclockwise"
                 },
                 { "label": "Toggle Sidebar", "command": "pdf-view:toggle-sidebar" },
-                { "label": "Presentation Mode", "command": "pdf-view:presentation-mode" },
-              ],
+                { "label": "Presentation Mode", "command": "pdf-view:presentation-mode" }
+              ]
             },
             {
               "label": "Tools",
@@ -47,18 +47,18 @@
                 { "label": "Text Selection Tool", "command": "pdf-view:select-tool" },
                 { "label": "Hand Tool", "command": "pdf-view:hand-tool" },
                 { "type": "separator" },
-                { "label": "Copy Selection", "command": "pdf-view:copy" },
-              ],
+                { "label": "Copy Selection", "command": "pdf-view:copy" }
+              ]
             },
             { "type": "separator" },
             { "label": "Compile Source", "command": "pdf-view:compile" },
             { "label": "Open Source", "command": "pdf-view:open-tex" },
             { "type": "separator" },
             { "label": "Download", "command": "pdf-view:download" },
-            { "label": "Print", "command": "pdf-view:print" },
-          ],
-        },
-      ],
-    },
-  ],
+            { "label": "Print", "command": "pdf-view:print" }
+          ]
+        }
+      ]
+    }
+  ]
 }
