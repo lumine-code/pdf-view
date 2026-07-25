@@ -16,7 +16,7 @@
     "typst",
     "sofistik"
   ],
-  "version": "3.0.0",
+  "version": "1.0.0",
   "license": "MIT",
   "engines": {
     "atom": ">=1.100.0 <2.0.0"
@@ -35,8 +35,7 @@
   "providedServices": {
     "pdf-view": {
       "versions": {
-        "1.0.0": "provideViewer",
-        "1.1.0": "provideViewer"
+        "1.0.0": "provideViewer"
       }
     },
     "navigation-adapter": {
@@ -48,17 +47,17 @@
   "consumedServices": {
     "latex-tools": {
       "versions": {
-        "1.0.0": "consumeLatexTools"
+        "^1.0.0": "consumeLatexTools"
       }
     },
     "typst-tools": {
       "versions": {
-        "1.0.0": "consumeTypstTools"
+        "^1.0.0": "consumeTypstTools"
       }
     },
     "simplemap": {
       "versions": {
-        "1.0.0": "consumeSimpleMap"
+        "^1.0.0": "consumeSimpleMap"
       }
     }
   },
