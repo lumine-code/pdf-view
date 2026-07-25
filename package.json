@@ -9,11 +9,12 @@
   "homepage": "https://github.com/lumine-code/pdf-view#readme",
   "pdfjsVersion": "6.1.200",
   "keywords": [
-    "pdf",
     "viewer",
     "synctex",
+    "pdf.js",
     "latex",
     "typst",
+    "document",
     "sofistik"
   ],
   "version": "1.0.0",
