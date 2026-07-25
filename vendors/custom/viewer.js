@@ -16,6 +16,10 @@ const THEME_VARS = [
   "--background-color-highlight",
   "--background-color-selected",
   "--font-family",
+  // Drive the PDF container's scrollbar from the same palette as the editor's
+  // "always visible" scrollbar (see the #outerContainer rules in viewer.css).
+  "--scrollbar-color",
+  "--scrollbar-background-color",
 ];
 
 function syncThemeVars() {

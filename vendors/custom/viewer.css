@@ -97,3 +97,38 @@ textarea {
 #outerContainer :focus-visible {
   outline: none !important;
 }
+
+/* Match the editor's always-visible scrollbar. This replaces the old
+   `.scrollbars-visible-always()` Less mixin (now a plain theme CSS class the
+   iframe can't see); its palette is mirrored in from the host by viewer.js. */
+#outerContainer ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#outerContainer ::-webkit-scrollbar-track {
+  background: var(--scrollbar-background-color);
+}
+
+#outerContainer ::-webkit-scrollbar-thumb {
+  border-radius: 5px;
+  border: 3px solid var(--scrollbar-background-color);
+  background: var(--scrollbar-color);
+  background-clip: content-box;
+}
+
+#outerContainer ::-webkit-scrollbar-corner {
+  background: var(--scrollbar-background-color);
+}
+
+#outerContainer ::-webkit-scrollbar-thumb:vertical:active {
+  border-radius: 0;
+  border-left-width: 0;
+  border-right-width: 0;
+}
+
+#outerContainer ::-webkit-scrollbar-thumb:horizontal:active {
+  border-radius: 0;
+  border-top-width: 0;
+  border-bottom-width: 0;
+}
