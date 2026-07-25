@@ -165,28 +165,6 @@ function patchFirstPagePromiseTDZ() {
   }
 }
 
-function patchPolyfills() {
-  const importLine = 'import "../../custom/api-fix.js";\n';
-  const files = [
-    path.join(PDFJS_DIR, "build", "pdf.mjs"),
-    path.join(PDFJS_DIR, "build", "pdf.worker.mjs"),
-    path.join(PDFJS_DIR, "web", "viewer.mjs"),
-  ];
-
-  for (const filePath of files) {
-    const file = path.basename(filePath);
-    let content = fs.readFileSync(filePath, "utf8");
-    if (content.includes("custom/api-fix.js")) {
-      console.log(`${file} already imports api-fix.js`);
-      continue;
-    }
-    // Insert import after the license/version comment block
-    content = content.replace(/^(\/\*\*[\s\S]*?\*\/\n)/, "$1" + importLine);
-    fs.writeFileSync(filePath, content);
-    console.log(`Patched ${file} with api-fix.js import`);
-  }
-}
-
 function extractZip(zipPath) {
   if (fs.existsSync(PDFJS_DIR)) {
     fs.rmSync(PDFJS_DIR, { recursive: true, force: true });
@@ -251,9 +229,6 @@ async function main() {
 
   // Patch viewer.mjs to fix firstPagePromise TDZ error in Electron 30
   patchFirstPagePromiseTDZ();
-
-  // Patch pdf.mjs and pdf.worker.mjs with polyfills for Electron 30
-  patchPolyfills();
 
   // Clean up zip
   fs.unlinkSync(zipPath);
