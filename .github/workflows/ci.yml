@@ -88,9 +88,6 @@ jobs:
         run: |
           install() { npm ci --ignore-scripts; }
           install || install || install
-      - name: Apply patches
-        working-directory: lumine
-        run: npx patch-package
       - name: Download the Electron binary
         working-directory: lumine
         run: node ./node_modules/electron/install.js
