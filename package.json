@@ -66,28 +66,24 @@
       "title": "Auto-reload on update",
       "description": "Automatically reload when the file is updated. The window can be refreshed manually by press `F5` in pdf-view.",
       "type": "boolean",
-      "order": 1,
       "default": true
     },
     "autoTime": {
       "title": "Auto-refresh delay",
       "description": "The time in ms before reloading the pdf-view after the last detected change.",
       "type": "integer",
-      "order": 2,
       "default": 1000
     },
     "closeDeleted": {
       "title": "Close panel if file deleted",
       "description": "Set to true to automatically close the pdf-view when the disk file is deleted.",
       "type": "boolean",
-      "order": 3,
       "default": true
     },
     "defaultZoom": {
       "title": "Default zoom",
       "description": "The default zoom level when opening a PDF.",
       "type": "string",
-      "order": 4,
       "enum": [
         "auto",
         "page-fit",
@@ -106,7 +102,6 @@
       "title": "Default sidebar",
       "description": "The default sidebar view when opening a PDF.",
       "type": "string",
-      "order": 5,
       "enum": [
         "none",
         "thumbs",
@@ -119,26 +114,22 @@
       "title": "Filter section numbers",
       "description": "Remove leading section numbers from PDF outline entries in navigation-panel.",
       "type": "boolean",
-      "order": 6,
       "default": false
     },
     "scrollmap": {
       "title": "Scrollmap",
       "description": "Show PDF outline markers on the scrollbar when scrollmap is installed.",
       "type": "object",
-      "order": 7,
       "properties": {
         "enabled": {
           "title": "Enabled",
           "type": "boolean",
-          "order": 1,
           "default": true
         },
         "maxDepth": {
           "title": "Max Depth",
           "description": "Maximum outline depth to show. Zero means no limit.",
           "type": "integer",
-          "order": 2,
           "minimum": 0,
           "default": 0
         },
@@ -146,7 +137,6 @@
           "title": "Threshold",
           "description": "Hide markers if count exceeds this value. Zero means no limit.",
           "type": "integer",
-          "order": 3,
           "minimum": 0,
           "default": 0
         }
@@ -156,7 +146,6 @@
       "title": "Debug",
       "description": "Show some errors in console.",
       "type": "boolean",
-      "order": 8,
       "default": false
     }
   },
