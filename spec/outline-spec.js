@@ -1,5 +1,3 @@
-/* global describe, it, expect */
-
 const { enrichOutline, markOutlineState } = require("../lib/outline");
 
 describe("enrichOutline", () => {

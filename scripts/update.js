@@ -79,7 +79,6 @@ function patchViewerHtml() {
     '<link rel="stylesheet" href="viewer.css" />\n' +
       '    <link rel="stylesheet" href="../../custom/viewer.css">',
   );
-  changed = true;
 
   // Add custom JS after viewer.mjs (before </head>)
   html = html.replace(
@@ -87,11 +86,9 @@ function patchViewerHtml() {
     '<script src="viewer.mjs" type="module"></script>\n' +
       '    <script src="../../custom/viewer.js"></script>\n  </head>',
   );
-  changed = true;
 
-  if (changed) {
-    fs.writeFileSync(viewerPath, html);
-  }
+  // Reaching here always means the CSS/JS links were absent, so always write.
+  fs.writeFileSync(viewerPath, html);
   console.log("Patched viewer.html with custom CSS/JS");
 }
 

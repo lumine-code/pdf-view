@@ -63,32 +63,31 @@
   },
   "configSchema": {
     "autoRefresh": {
-      "order": 1,
       "title": "Auto-reload on update",
       "description": "Automatically reload when the file is updated. The window can be refreshed manually by press `F5` in pdf-view.",
       "type": "boolean",
+      "order": 1,
       "default": true
     },
     "autoTime": {
-      "order": 2,
       "title": "Auto-refresh delay",
       "description": "The time in ms before reloading the pdf-view after the last detected change.",
       "type": "integer",
+      "order": 2,
       "default": 1000
     },
     "closeDeleted": {
-      "order": 3,
       "title": "Close panel if file deleted",
       "description": "Set to true to automatically close the pdf-view when the disk file is deleted.",
       "type": "boolean",
+      "order": 3,
       "default": true
     },
     "defaultZoom": {
-      "order": 4,
       "title": "Default zoom",
       "description": "The default zoom level when opening a PDF.",
       "type": "string",
-      "default": "auto",
+      "order": 4,
       "enum": [
         "auto",
         "page-fit",
@@ -100,68 +99,73 @@
         "125",
         "150",
         "200"
-      ]
+      ],
+      "default": "auto"
     },
     "defaultSidebar": {
-      "order": 5,
       "title": "Default sidebar",
       "description": "The default sidebar view when opening a PDF.",
       "type": "string",
-      "default": "none",
+      "order": 5,
       "enum": [
         "none",
         "thumbs",
         "outline",
         "attachments"
-      ]
+      ],
+      "default": "none"
     },
     "snoFilter": {
-      "order": 6,
       "title": "Filter section numbers",
       "description": "Remove leading section numbers from PDF outline entries in navigation-panel.",
       "type": "boolean",
+      "order": 6,
       "default": false
     },
     "scrollmap": {
-      "order": 7,
       "title": "Scrollmap",
       "description": "Show PDF outline markers on the scrollbar when scrollmap is installed.",
       "type": "object",
+      "order": 7,
       "properties": {
         "enabled": {
-          "order": 1,
-          "type": "boolean",
           "title": "Enabled",
+          "type": "boolean",
+          "order": 1,
           "default": true
         },
         "maxDepth": {
-          "order": 2,
-          "type": "integer",
           "title": "Max Depth",
           "description": "Maximum outline depth to show. Zero means no limit.",
+          "type": "integer",
+          "order": 2,
           "minimum": 0,
           "default": 0
         },
         "threshold": {
-          "order": 3,
-          "type": "integer",
           "title": "Threshold",
           "description": "Hide markers if count exceeds this value. Zero means no limit.",
+          "type": "integer",
+          "order": 3,
           "minimum": 0,
           "default": 0
         }
       }
     },
     "debug": {
-      "order": 8,
       "title": "Debug",
       "description": "Show some errors in console.",
       "type": "boolean",
+      "order": 8,
       "default": false
     }
   },
   "devDependencies": {
-    "eslint": "^8.57.1",
-    "prettier": "^3.9.5"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-n": "^18.2.2",
+    "globals": "^17.7.0",
+    "prettier": "^3.9.6"
   }
 }

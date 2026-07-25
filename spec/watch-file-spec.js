@@ -1,5 +1,3 @@
-/* global describe, it, expect, beforeEach, afterEach */
-
 const { watchFile } = require("atom");
 const fs = require("fs");
 const os = require("os");

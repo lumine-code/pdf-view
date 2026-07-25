@@ -91,76 +91,13 @@ With a `typst-tools` package installed, the viewer integrates Typst compilation:
 
 When both `.typ` and `.tex` source files exist, the Typst source takes priority.
 
-## Provided Service `pdf-view`
+## Services
 
-Lets other packages manage PDF viewers programmatically: open PDFs, observe viewer instances, scroll to destinations, and update viewer files.
-
-In your `package.json`:
-
-```json
-{
-  "consumedServices": {
-    "pdf-view": {
-      "versions": {
-        "1.0.0": "consumePdfView"
-      }
-    }
-  }
-}
-```
-
-In your main module:
-
-```javascript
-consumePdfView(service) {
-  // Observe all viewers (existing and new)
-  this.subscriptions.add(
-    service.observeViewers((viewer) => {
-      console.log(`Viewer opened: ${viewer.filePath}`);
-    })
-  );
-
-  // Open a PDF in a split pane
-  service.open('/path/to/file.pdf', {
-    split: 'right',
-    dest: 'chapter1',
-    activatePane: false,
-  });
-
-  // Find a viewer by file path
-  const viewer = service.getViewerByPath('/path/to/file.pdf');
-
-  // Scroll to a named destination
-  service.scrollToDestination(viewer, 'section2');
-}
-```
-
-## Provided Service `navigation-adapter`
-
-Exposes the PDF document outline to a navigation panel. Registers automatically when both packages are installed.
-
-In your `package.json`:
-
-```json
-{
-  "consumedServices": {
-    "navigation-adapter": {
-      "versions": {
-        "1.0.0": "consumeNavigationAdapter"
-      }
-    }
-  }
-}
-```
-
-In your main module:
-
-```javascript
-consumeNavigationAdapter(adapter) {
-  // adapter follows the navigation-adapter protocol:
-  // handlesItem(item), observeHeaders(item, callback), navigateTo(item, header)
-}
-```
+- **pdf-view** (`1.0.0`, `1.1.0`): provided to let other packages manage PDF viewers programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
+- **navigation-adapter** (`1.0.0`): provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
+- **latex-tools** (`1.0.0`): consumed to compile `.tex` sources and resolve SyncTeX positions for backward search.
+- **typst-tools** (`1.0.0`): consumed to compile `.typ` sources.
+- **simplemap** (`1.0.0`): consumed to draw PDF outline markers on the scrollbar.
 
 ## Contributing
 
