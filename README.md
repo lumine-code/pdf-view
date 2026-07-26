@@ -91,11 +91,11 @@ When both `.typ` and `.tex` source files exist, the Typst source takes priority.
 
 ## Services
 
-- **pdf-view** (`1.0.0`): provided to let other packages manage PDF viewers programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
-- **navigation.adapter** (`1.0.0`): provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
-- **latex-tools** (`^1.0.0`): consumed to compile `.tex` sources and resolve SyncTeX positions for backward search.
-- **typst-tools** (`^1.0.0`): consumed to compile `.typ` sources.
-- **scrollmap.widget** (`^1.0.0`): consumed to draw PDF outline markers on the scrollbar.
+- **[pdf-view](docs/pdf-view.md)** (`1.0.0`): provided to let other packages manage PDF viewers programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
+- **[navigation.adapter](https://lumine-code.github.io/docs.html#services/navigation.adapter)** (`1.0.0`): provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
+- **[latex-tools](https://lumine-code.github.io/docs.html#services/latex-tools)** (`^1.0.0`): consumed to compile `.tex` sources and resolve SyncTeX positions for backward search.
+- **[typst-tools](https://lumine-code.github.io/docs.html#services/typst-tools)** (`^1.0.0`): consumed to compile `.typ` sources.
+- **[scrollmap.widget](https://lumine-code.github.io/docs.html#services/scrollmap.widget)** (`^1.0.0`): consumed to draw PDF outline markers on the scrollbar.
 
 ## Contributing
 
