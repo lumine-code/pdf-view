@@ -36,7 +36,7 @@
   "providedServices": {
     "pdf-view": {
       "versions": {
-        "1.0.0": "provideViewer"
+        "1.0.0": "providePdfView"
       }
     },
     "navigation-adapter": {
