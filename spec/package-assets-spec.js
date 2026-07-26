@@ -75,8 +75,8 @@ describe("pdf-view package assets", () => {
     expect(pkg.deserializers["pdf-view"]).toBeDefined();
     expect(pkg.deserializers["pdf-viewer"]).toBeUndefined();
     // ...but the shared cross-package contracts are kept verbatim.
-    expect(pkg.providedServices["navigation-adapter"]).toBeDefined();
-    expect(pkg.consumedServices["simplemap"]).toBeDefined();
+    expect(pkg.providedServices["navigation.adapter"]).toBeDefined();
+    expect(pkg.consumedServices["scrollmap.widget"]).toBeDefined();
     expect(pkg.consumedServices["latex-tools"]).toBeDefined();
     expect(pkg.consumedServices["typst-tools"]).toBeDefined();
   });

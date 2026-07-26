@@ -39,7 +39,7 @@
         "1.0.0": "providePdfView"
       }
     },
-    "navigation-adapter": {
+    "navigation.adapter": {
       "versions": {
         "1.0.0": "provideNavigationAdapter"
       }
@@ -56,9 +56,9 @@
         "^1.0.0": "consumeTypstTools"
       }
     },
-    "simplemap": {
+    "scrollmap.widget": {
       "versions": {
-        "^1.0.0": "consumeSimpleMap"
+        "^1.0.0": "consumeScrollmapWidget"
       }
     }
   },

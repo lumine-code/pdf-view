@@ -62,7 +62,7 @@ The viewer adapts its colors to the active Lumine theme. When the theme changes,
 
 ## Document outline
 
-The viewer exposes its document outline through the `navigation-adapter` service, so a navigation panel can search the outline tree instead of the built-in PDF.js outline. Scroll position is tracked and the active section is highlighted in the panel.
+The viewer exposes its document outline through the `navigation.adapter` service, so a navigation panel can search the outline tree instead of the built-in PDF.js outline. Scroll position is tracked and the active section is highlighted in the panel.
 
 ## URI options
 
@@ -92,10 +92,10 @@ When both `.typ` and `.tex` source files exist, the Typst source takes priority.
 ## Services
 
 - **pdf-view** (`1.0.0`): provided to let other packages manage PDF viewers programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
-- **navigation-adapter** (`1.0.0`): provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
+- **navigation.adapter** (`1.0.0`): provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
 - **latex-tools** (`^1.0.0`): consumed to compile `.tex` sources and resolve SyncTeX positions for backward search.
 - **typst-tools** (`^1.0.0`): consumed to compile `.typ` sources.
-- **simplemap** (`^1.0.0`): consumed to draw PDF outline markers on the scrollbar.
+- **scrollmap.widget** (`^1.0.0`): consumed to draw PDF outline markers on the scrollbar.
 
 ## Contributing
 
