@@ -12,7 +12,7 @@ const parseJsonc = (rel) => JSON.parse(read(rel).replace(/^\s*\/\/.*$/gm, ""));
 // Guards for the pdf-viewer -> pdf-view rebrand and the CSON -> JSON / Less -> CSS
 // modernization. The package's own identifiers (name, commands, config, the
 // pdf-view provided service, deserializer, CSS classes) are renamed; the shared
-// cross-package service contracts (navigation-adapter, simplemap) are preserved.
+// cross-package service contracts (navigation.adapter, scrollmap.widget) are preserved.
 describe("pdf-view package assets", () => {
   it("ships keymaps and menus as JSON (comments allowed), not CSON or JSONC", () => {
     expect(exists("keymaps/pdf-view.json")).toBe(true);
