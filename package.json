@@ -22,6 +22,10 @@
   "engines": {
     "atom": ">=1.100.0 <2.0.0"
   },
+  "backgroundTips": [
+    "You can search inside a PDF you are reading with {{ 'pdf-view:find' | keystroke }}",
+    "You can reach a PDF's outline and page thumbnails with {{ 'pdf-view:toggle-sidebar' | keystroke }}"
+  ],
   "main": "./lib/main",
   "scripts": {
     "test": "lumine --test spec",
