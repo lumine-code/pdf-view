@@ -92,21 +92,44 @@ function patchViewerHtml() {
   console.log("Patched viewer.html with custom CSS/JS");
 }
 
+// Default values of AppOptions entries to rewrite in viewer.mjs.
+const OPTION_PATCHES = [
+  // Printing is unsupported: the print buttons are hidden when this is false.
+  { name: "supportsPrinting", from: "true", to: "false", label: "supportsPrinting set to false" },
+  // Suppress noisy PDF.js warnings from malformed embedded fonts.
+  { name: "verbosity", from: "1", to: "0", label: "default verbosity set to errors only" },
+];
+
+// The entries changed shape in PDF.js 6.2: the `defaultOptions` object literal
+// (`verbosity: { value: 1,`) became a Map of pairs (`["verbosity", { value: 1,`).
+// Match either spelling so the patch survives a revert.
+function optionValuePattern(name, value) {
+  return new RegExp(`((?:\\["${name}",|\\b${name}:)\\s*\\{\\s*value:\\s*)${value}\\b`);
+}
+
+function patchOption(content, { name, from, to, label }) {
+  const pattern = optionValuePattern(name, from);
+  if (pattern.test(content)) {
+    console.log(`Patched viewer.mjs: ${label}`);
+    return { content: content.replace(pattern, (_, prefix) => prefix + to), changed: true };
+  }
+  if (optionValuePattern(name, to).test(content)) {
+    console.log(`viewer.mjs already patched: ${name} is ${to}`);
+  } else {
+    console.warn(`Warning: Could not find ${name} pattern in viewer.mjs`);
+  }
+  return { content, changed: false };
+}
+
 function patchViewerMjs() {
   const viewerPath = path.join(PDFJS_DIR, "web", "viewer.mjs");
   let content = fs.readFileSync(viewerPath, "utf8");
   let changed = false;
 
-  // Disable printing by setting supportsPrinting to false
-  const printPattern = /supportsPrinting:\s*\{\s*value:\s*true,/g;
-  if (printPattern.test(content)) {
-    content = content.replace(printPattern, "supportsPrinting: {\n    value: false,");
-    changed = true;
-    console.log("Patched viewer.mjs: supportsPrinting set to false");
-  } else if (/supportsPrinting:\s*\{\s*value:\s*false,/.test(content)) {
-    console.log("viewer.mjs already patched: supportsPrinting is false");
-  } else {
-    console.warn("Warning: Could not find supportsPrinting pattern in viewer.mjs");
+  for (const patch of OPTION_PATCHES) {
+    const result = patchOption(content, patch);
+    content = result.content;
+    changed = changed || result.changed;
   }
 
   // Suppress textLayer focus after destination navigation to prevent keyboard focus
@@ -121,21 +144,6 @@ function patchViewerMjs() {
     console.log("viewer.mjs already patched: textLayer focus suppressed");
   } else {
     console.warn("Warning: Could not find textLayer focus pattern in viewer.mjs");
-  }
-
-  // Suppress noisy PDF.js warnings from malformed embedded fonts.
-  const verbosityPattern = /verbosity:\s*\{\s*value:\s*1,\s*kind:\s*OptionKind\.API\s*\}/;
-  if (verbosityPattern.test(content)) {
-    content = content.replace(
-      verbosityPattern,
-      "verbosity: {\n    value: 0,\n    kind: OptionKind.API\n  }",
-    );
-    changed = true;
-    console.log("Patched viewer.mjs: default verbosity set to errors only");
-  } else if (/verbosity:\s*\{\s*value:\s*0,\s*kind:\s*OptionKind\.API\s*\}/.test(content)) {
-    console.log("viewer.mjs already patched: default verbosity is errors only");
-  } else {
-    console.warn("Warning: Could not find verbosity pattern in viewer.mjs");
   }
 
   if (changed) {
