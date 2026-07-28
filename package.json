@@ -7,7 +7,7 @@
     "url": "https://github.com/lumine-code/pdf-view/issues"
   },
   "homepage": "https://github.com/lumine-code/pdf-view#readme",
-  "pdfjsVersion": "6.1.200",
+  "pdfjsVersion": "6.2.108",
   "keywords": [
     "viewer",
     "synctex",
