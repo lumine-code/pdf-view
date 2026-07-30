@@ -99,6 +99,18 @@ describe("pdf-view package assets", () => {
     expect(typeof outline.markOutlineState).toBe("function");
   });
 
+  it("reports the visible outline entries after the scroll, never from the event", () => {
+    // PDFViewer dispatches "pagechanging" from #scrollIntoView and, for a
+    // destination that carries a zoom, "updateviewarea" from the scale change —
+    // both before it assigns container.scrollTop. Reading the viewport in those
+    // handlers reports the region being left, which made the navigation panel
+    // scroll its list back to the entry the user had just navigated away from.
+    const custom = read("vendors/custom/viewer.js");
+    expect(custom).toContain('eventBus.on("pagechanging", scheduleCurrentDest)');
+    expect(custom).toContain('eventBus.on("updateviewarea", scheduleCurrentDest)');
+    expect(custom).toMatch(/function scheduleCurrentDest\(\)[\s\S]*setTimeout/);
+  });
+
   it("renews its subscriptions in setFile so the watchFile watcher is not leaked", () => {
     // A CompositeDisposable stays disposed once disposed, so `add()` after
     // dispose is a no-op. watchFile owns a native watcher that must be disposed;

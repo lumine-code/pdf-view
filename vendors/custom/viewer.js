@@ -104,11 +104,31 @@ window.onload = () => {
     spawnCurrentDest();
   });
 
-  // Also listen for pagechanging and updateviewarea to update the outline item automatically
-  const updateCurrent = () => spawnCurrentDest();
-  PDFViewerApplication.eventBus.on("pagechanging", updateCurrent);
-  PDFViewerApplication.eventBus.on("updateviewarea", updateCurrent);
+  // Report the visible outline entries after every viewport change. Both events
+  // are deferred, never read straight from the handler: PDFViewer dispatches
+  // "pagechanging" from #scrollIntoView and "updateviewarea" from the scale
+  // change a destination may carry, both *before* it assigns container.scrollTop
+  // — reading there reports the region being left, which sent the navigation
+  // panel back to the entry the user had just navigated away from.
+  PDFViewerApplication.eventBus.on("pagechanging", scheduleCurrentDest);
+  PDFViewerApplication.eventBus.on("updateviewarea", scheduleCurrentDest);
 };
+
+// Coalesce the burst of events a single scroll produces into one message read
+// after the scroll has landed. A timer, not requestAnimationFrame: a hidden
+// viewer gets no frames, and the scroll position is readable as soon as the
+// task that set it ends.
+let currentDestTimer = null;
+
+function scheduleCurrentDest() {
+  if (currentDestTimer !== null) {
+    return;
+  }
+  currentDestTimer = setTimeout(() => {
+    currentDestTimer = null;
+    spawnCurrentDest();
+  });
+}
 
 // Helper to recursively enrich items and resolve destinations
 async function enrichItems(items) {
