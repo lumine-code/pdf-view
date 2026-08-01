@@ -100,10 +100,11 @@ textarea {
 
 /* Match the editor's always-visible scrollbar. This replaces the old
    `.scrollbars-visible-always()` Less mixin (now a plain theme CSS class the
-   iframe can't see); its palette is mirrored in from the host by viewer.js. */
+   iframe can't see); its palette and measured width are mirrored in from the
+   host by viewer.js. */
 #outerContainer ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: var(--pdf-scrollbar-width, 10px);
+  height: var(--pdf-scrollbar-width, 10px);
 }
 
 #outerContainer ::-webkit-scrollbar-track {

@@ -64,6 +64,25 @@ describe("pdf-view package assets", () => {
     expect(css).toContain(".pdf-view-colors-inverted");
   });
 
+  it("fills page-width and mirrors the host scrollbar width into the iframe", () => {
+    const pdfViewer = read("vendors/pdfjs-dist/web/viewer.mjs");
+    const constructor = pdfViewer.match(
+      /const pdfViewer = this\.pdfViewer = new PDFViewer\(\{[\s\S]*?\n {4}\}\);/,
+    );
+    expect(constructor).not.toBeNull();
+    expect(constructor[0]).toContain("removePageBorders: true");
+
+    // Preserve the vendor change across future PDF.js updates.
+    expect(read("scripts/update.js")).toContain("enabled borderless full-width pages");
+
+    const custom = read("vendors/custom/viewer.js");
+    const css = read("vendors/custom/viewer.css");
+    expect(custom).toContain("probe.offsetWidth - probe.clientWidth");
+    expect(custom).toContain('"--pdf-scrollbar-width"');
+    expect(css).toContain("width: var(--pdf-scrollbar-width, 10px)");
+    expect(css).toContain("height: var(--pdf-scrollbar-width, 10px)");
+  });
+
   it("renames the package to match its directory and keeps shared service contracts", () => {
     const pkg = JSON.parse(read("package.json"));
     expect(pkg.name).toBe("pdf-view");

@@ -22,6 +22,27 @@ const THEME_VARS = [
   "--scrollbar-background-color",
 ];
 
+const FALLBACK_SCROLLBAR_WIDTH = 10;
+
+function measureHostScrollbarWidth() {
+  const host =
+    parent.atom?.workspace?.getElement?.() ||
+    parent.document.querySelector("atom-workspace") ||
+    parent.document.body;
+  const probe = parent.document.createElement("div");
+  probe.style.cssText =
+    "position: absolute; top: -9999px; width: 100px; height: 100px; overflow: scroll;";
+
+  let width = 0;
+  try {
+    host.appendChild(probe);
+    width = probe.offsetWidth - probe.clientWidth;
+  } finally {
+    probe.remove();
+  }
+  return width > 0 ? width : FALLBACK_SCROLLBAR_WIDTH;
+}
+
 function syncThemeVars() {
   try {
     const hostStyle = parent.getComputedStyle(parent.document.documentElement);
@@ -32,6 +53,10 @@ function syncThemeVars() {
         rootStyle.setProperty(name, value);
       }
     }
+    rootStyle.setProperty(
+      "--pdf-scrollbar-width",
+      `${measureHostScrollbarWidth()}px`,
+    );
   } catch (e) {
     // The host may be unreachable in some contexts; fall back to PDF.js defaults.
   }

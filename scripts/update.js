@@ -132,6 +132,24 @@ function patchViewerMjs() {
     changed = changed || result.changed;
   }
 
+  // `page-width` normally reserves PDF.js's fixed 40px horizontal padding,
+  // even though container.clientWidth already excludes the scrollbar. Use the
+  // viewer's supported borderless mode so page-width really fills the viewport
+  // from the very first scale calculation.
+  const borderlessPattern =
+    /(const pdfViewer = this\.pdfViewer = new PDFViewer\(\{\r?\n\s*container,\r?\n\s*viewer,)(\r?\n)/;
+  const borderlessAppliedPattern =
+    /const pdfViewer = this\.pdfViewer = new PDFViewer\(\{\r?\n\s*container,\r?\n\s*viewer,\r?\n\s*removePageBorders: true,/;
+  if (borderlessAppliedPattern.test(content)) {
+    console.log("viewer.mjs already patched: borderless full-width pages enabled");
+  } else if (borderlessPattern.test(content)) {
+    content = content.replace(borderlessPattern, "$1$2      removePageBorders: true,$2");
+    changed = true;
+    console.log("Patched viewer.mjs: enabled borderless full-width pages");
+  } else {
+    console.warn("Warning: Could not find PDFViewer constructor in viewer.mjs");
+  }
+
   // Suppress textLayer focus after destination navigation to prevent keyboard focus
   // steal when the viewer is opened without activating its pane (activatePane=false).
   const focusPattern =
