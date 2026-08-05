@@ -27,6 +27,15 @@
     "You can reach a PDF's outline and page thumbnails with {{ 'pdf-view:toggle-sidebar' | keystroke }}"
   ],
   "main": "./lib/main",
+  "files": [
+    "docs",
+    "keymaps",
+    "lib",
+    "menus",
+    "spec",
+    "styles",
+    "vendors"
+  ],
   "scripts": {
     "test": "lumine --test spec",
     "lint": "eslint . --max-warnings 0",
