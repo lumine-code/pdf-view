@@ -28,7 +28,9 @@ describe("PDF viewer auto-refresh", () => {
     if (viewer?.refreshTimeout) {
       clearTimeout(viewer.refreshTimeout);
     }
-    fs.rmSync(dir, { recursive: true, force: true });
+    // Retries because Windows keeps a directory non-empty until the last handle on a child
+    // closes, and `force` swallows only ENOENT.
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it("ignores a watcher notification when the opened PDF has not changed", () => {
