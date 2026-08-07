@@ -22,10 +22,7 @@ To install `pdf-view` search for _pdf-view_ in the Install pane of the Lumine se
 
 Commands available in `atom-workspace`:
 
-- `pdf-view:reload-all`: reload all open PDF viewers.
-
-Commands available in `.pdf-view`:
-
+- `pdf-view:reload-all`: reload all open PDF viewers,
 - `pdf-view:refresh`: refresh content for the current viewer,
 - `pdf-view:toggle-refreshing`: toggle auto-refresh for the current viewer,
 - `pdf-view:compile`: compile the source `.typ` or `.tex` file,
