@@ -1,9 +1,9 @@
-const { watchFile } = require("atom");
+const { watchFile } = require("lumine");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-// The PDF viewer watched its backing .pdf with the removed synchronous atom
+// The PDF viewer watched its backing .pdf with the removed synchronous lumine
 // `File` API (onDidChange/onDidDelete/onDidRename + getPath). Lumine replaced
 // File with the async watchFile. These specs pin the parts of the watchFile
 // contract the viewer relies on. The handle exposes its emitter so events can be
@@ -28,7 +28,7 @@ describe("watchFile (pdf viewer file watcher migration)", () => {
     fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
-  it("is exported from the atom module as a function", () => {
+  it("is exported from the lumine module as a function", () => {
     expect(typeof watchFile).toBe("function");
   });
 

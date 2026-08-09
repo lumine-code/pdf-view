@@ -26,8 +26,8 @@ const FALLBACK_SCROLLBAR_WIDTH = 10;
 
 function measureHostScrollbarWidth() {
   const host =
-    parent.atom?.workspace?.getElement?.() ||
-    parent.document.querySelector("atom-workspace") ||
+    parent.lumine?.workspace?.getElement?.() ||
+    parent.document.querySelector("lumine-workspace") ||
     parent.document.body;
   const probe = parent.document.createElement("div");
   probe.style.cssText =
@@ -64,7 +64,7 @@ function syncThemeVars() {
 
 syncThemeVars();
 
-const themeSubscription = parent.atom?.themes?.onDidChangeActiveThemes?.(syncThemeVars);
+const themeSubscription = parent.lumine?.themes?.onDidChangeActiveThemes?.(syncThemeVars);
 if (themeSubscription) {
   window.addEventListener("pagehide", () => themeSubscription.dispose(), { once: true });
 }
@@ -100,11 +100,11 @@ function setupVisibilityObserver() {
 }
 
 window.onload = () => {
-  const sidebarConfig = parent.atom?.config?.get("pdf-view.defaultSidebar") || "none";
+  const sidebarConfig = parent.lumine?.config?.get("pdf-view.defaultSidebar") || "none";
   PDFViewerApplicationOptions.set("sidebarViewOnLoad",
     { none: 0, thumbs: 1, outline: 2, attachments: 3 }[sidebarConfig] ?? 0);
   PDFViewerApplicationOptions.set("defaultZoomValue",
-    parent.atom?.config?.get("pdf-view.defaultZoom") || "auto");
+    parent.lumine?.config?.get("pdf-view.defaultZoom") || "auto");
   PDFViewerApplicationOptions.set("enableScripting", false);
   PDFViewerApplicationOptions.set("externalLinkTarget", 4);
   PDFViewerApplicationOptions.set("isEvalSupported", false);
@@ -402,7 +402,7 @@ window.addEventListener("message", (message) => {
   }
 });
 
-let lastParams = { page: 1, zoom: parent.atom?.config?.get("pdf-view.defaultZoom") || "auto" };
+let lastParams = { page: 1, zoom: parent.lumine?.config?.get("pdf-view.defaultZoom") || "auto" };
 
 function refreshContents(data) {
   if (window.frameElement && window.frameElement.style.display === "none") {

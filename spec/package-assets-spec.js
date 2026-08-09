@@ -102,7 +102,7 @@ describe("pdf-view package assets", () => {
 
   it("drops the removed File API and runtime Less compilation from the sources", () => {
     const viewer = read("lib/viewer.js");
-    expect(viewer).toContain('watchFile } = require("atom")');
+    expect(viewer).toContain('watchFile } = require("lumine")');
     expect(viewer).not.toMatch(/\bnew File\(/);
     const main = read("lib/main.js");
     expect(main).not.toContain("loadLessStylesheet");

@@ -20,7 +20,7 @@ To install `pdf-view` search for _pdf-view_ in the Install pane of the Lumine se
 
 ## Commands
 
-Commands available in `atom-workspace`:
+Commands available in `lumine-workspace`:
 
 - `pdf-view:reload-all`: reload all open PDF viewers,
 - `pdf-view:refresh`: refresh content for the current viewer,
