@@ -490,6 +490,26 @@ function runViewerCommand(command) {
       return eventBus.dispatch("zoomout", { source: window });
     case "zoom-reset":
       return eventBus.dispatch("zoomreset", { source: window });
+    case "page-width":
+      return setScaleValue("page-width");
+    case "page-fit":
+      return setScaleValue("page-fit");
+    case "page-actual":
+      return setScaleValue("page-actual");
+    case "scroll-mode-vertical":
+      return setScrollMode(0);
+    case "scroll-mode-horizontal":
+      return setScrollMode(1);
+    case "scroll-mode-wrapped":
+      return setScrollMode(2);
+    case "scroll-mode-page":
+      return setScrollMode(3);
+    case "spread-none":
+      return setSpreadMode(0);
+    case "spread-odd":
+      return setSpreadMode(1);
+    case "spread-even":
+      return setSpreadMode(2);
     case "rotate-clockwise":
       return eventBus.dispatch("rotatecw", { source: window });
     case "rotate-counterclockwise":
@@ -515,6 +535,30 @@ function runViewerCommand(command) {
     case "copy":
       return copySelection();
   }
+}
+
+// PDF.js keeps its zoom presets in `currentScaleValue`, and the toolbar dropdown
+// writes exactly the strings `pdf-view.defaultZoom` stores ("auto", "page-width",
+// "page-fit", "page-actual"), so a command and the setting name the same value.
+// Presentation mode owns the scale, so decline there the way zoomReset does.
+function setScaleValue(value) {
+  const pdfViewer = PDFViewerApplication.pdfViewer;
+  if (!pdfViewer || pdfViewer.isInPresentationMode) {
+    return;
+  }
+  pdfViewer.currentScaleValue = value;
+}
+
+// Dispatch on the event bus rather than assigning `pdfViewer.scrollMode`
+// directly: the secondary toolbar's radio state follows the event, not the
+// property. The setter also throws on an invalid mode, and ignores a change
+// altogether past PagesCountLimit.FORCE_SCROLL_MODE_PAGE.
+function setScrollMode(mode) {
+  PDFViewerApplication.eventBus.dispatch("switchscrollmode", { source: window, mode });
+}
+
+function setSpreadMode(mode) {
+  PDFViewerApplication.eventBus.dispatch("switchspreadmode", { source: window, mode });
 }
 
 function copySelection() {

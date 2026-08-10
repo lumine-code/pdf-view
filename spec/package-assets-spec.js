@@ -40,6 +40,48 @@ describe("pdf-view package assets", () => {
     expect(flat).toContain("pdf-view:refresh");
   });
 
+  it("backs every forwarded command with a case in the iframe script", () => {
+    // The command name is registered in lib/main.js and handled in
+    // vendors/custom/viewer.js, two files that nothing else ties together — a
+    // forwarded name with no matching `case` is a menu item that silently does
+    // nothing. `own` commands are handled by the Viewer itself, not forwarded.
+    const own = ["compile", "open-tex", "refresh", "toggle-refreshing"];
+    const commands = Object.keys(require("../lib/main").viewerCommands());
+    const custom = read("vendors/custom/viewer.js");
+
+    for (const command of commands) {
+      const name = command.replace(/^pdf-view:/, "");
+      if (own.includes(name)) continue;
+      expect(custom).toContain(`case "${name}":`);
+    }
+    // The zoom presets name the same values as the `defaultZoom` setting.
+    for (const preset of ["page-width", "page-fit", "page-actual"]) {
+      expect(commands).toContain(`pdf-view:${preset}`);
+      expect(JSON.parse(read("package.json")).configSchema.defaultZoom.enum).toContain(preset);
+    }
+  });
+
+  it("names only registered commands in the menu and the keymap", () => {
+    const registered = new Set([
+      "pdf-view:reload-all",
+      ...Object.keys(require("../lib/main").viewerCommands()),
+    ]);
+    const named = [];
+    const walk = (items) => {
+      for (const item of items) {
+        if (item.command) named.push(item.command);
+        if (item.submenu) walk(item.submenu);
+      }
+    };
+    walk(parseJsonc("menus/pdf-view.json").menu);
+    named.push(...Object.values(parseJsonc("keymaps/pdf-view.json")[".pdf-view"]));
+
+    expect(named.length).toBeGreaterThan(0);
+    for (const command of named) {
+      expect(registered.has(command)).toBe(true);
+    }
+  });
+
   it("keeps the config JSON free of trailing commas", () => {
     // House style allows // comments but forbids trailing commas.
     expect(read("keymaps/pdf-view.json")).not.toMatch(/,\s*[}\]]/);

@@ -28,6 +28,28 @@
                 { "label": "Zoom Out", "command": "pdf-view:zoom-out" },
                 { "label": "Reset Zoom", "command": "pdf-view:zoom-reset" },
                 { "type": "separator" },
+                { "label": "Page Width", "command": "pdf-view:page-width" },
+                { "label": "Page Fit", "command": "pdf-view:page-fit" },
+                { "label": "Actual Size", "command": "pdf-view:page-actual" },
+                { "type": "separator" },
+                {
+                  "label": "Scrolling",
+                  "submenu": [
+                    { "label": "Vertical", "command": "pdf-view:scroll-mode-vertical" },
+                    { "label": "Horizontal", "command": "pdf-view:scroll-mode-horizontal" },
+                    { "label": "Wrapped", "command": "pdf-view:scroll-mode-wrapped" },
+                    { "label": "Page", "command": "pdf-view:scroll-mode-page" }
+                  ]
+                },
+                {
+                  "label": "Spreads",
+                  "submenu": [
+                    { "label": "None", "command": "pdf-view:spread-none" },
+                    { "label": "Odd", "command": "pdf-view:spread-odd" },
+                    { "label": "Even", "command": "pdf-view:spread-even" }
+                  ]
+                },
+                { "type": "separator" },
                 { "label": "Rotate Clockwise", "command": "pdf-view:rotate-clockwise" },
                 {
                   "label": "Rotate Counterclockwise",
