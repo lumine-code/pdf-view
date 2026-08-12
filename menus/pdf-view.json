@@ -76,8 +76,7 @@
             { "label": "Compile Source", "command": "pdf-view:compile" },
             { "label": "Open Source", "command": "pdf-view:open-tex" },
             { "type": "separator" },
-            { "label": "Download", "command": "pdf-view:download" },
-            { "label": "Print", "command": "pdf-view:print" }
+            { "label": "Download", "command": "pdf-view:download" }
           ]
         }
       ]

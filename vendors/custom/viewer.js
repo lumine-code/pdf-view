@@ -530,8 +530,6 @@ function runViewerCommand(command) {
       return app.requestPresentationMode();
     case "download":
       return eventBus.dispatch("download", { source: window });
-    case "print":
-      return eventBus.dispatch("print", { source: window });
     case "copy":
       return copySelection();
   }

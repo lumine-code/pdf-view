@@ -60,8 +60,7 @@ Commands available in `lumine-workspace`:
 - `pdf-view:copy`: copy the selected text to the clipboard,
 - `pdf-view:toggle-sidebar`: toggle the PDF sidebar,
 - `pdf-view:presentation-mode`: enter presentation mode,
-- `pdf-view:download`: download the PDF,
-- `pdf-view:print`: print the PDF.
+- `pdf-view:download`: download the PDF.
 
 ## Style
 
