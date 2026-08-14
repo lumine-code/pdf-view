@@ -16,7 +16,7 @@ Built on Mozilla's PDF.js with theme integration, SyncTeX support, and a documen
 
 ## Installation
 
-To install `pdf-view` search for _pdf-view_ in the Install pane of the Lumine settings or run `lumine --install lumine-code/pdf-view`.
+To install `pdf-view` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/pdf-view`.
 
 ## Commands
 
@@ -97,11 +97,11 @@ When both `.typ` and `.tex` source files exist, the Typst source takes priority.
 
 ## Services
 
-- **[pdf-view](docs/pdf-view.md)** (`1.0.0`): provided to let other packages manage PDF viewers programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
-- **navigation.adapter** (`1.0.0`): provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
-- **latex-tools** (`^1.0.0`): consumed to compile `.tex` sources and resolve SyncTeX positions for backward search.
-- **typst-tools** (`^1.0.0`): consumed to compile `.typ` sources.
-- **scrollmap.widget** (`^1.0.0`): consumed to draw PDF outline markers on the scrollbar.
+- [`pdf-view`](docs/pdf-view.md): provided to let other packages manage PDF viewers programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
+- `navigation.adapter`: provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
+- `latex-tools`: consumed to compile `.tex` sources and resolve SyncTeX positions for backward search.
+- `typst-tools`: consumed to compile `.typ` sources.
+- `scrollmap.widget`: consumed to draw PDF outline markers on the scrollbar.
 
 ## Contributing
 
