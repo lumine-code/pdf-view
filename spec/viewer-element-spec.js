@@ -14,6 +14,12 @@ describe("Viewer element", () => {
   });
 
   afterEach(() => {
+    // Destroying a focused iframe leaves the window with no focused frame,
+    // which strands every later spec's focusTestWindow on a host with no
+    // window manager -- hand focus back to the top document first.
+    if (viewer && document.activeElement === viewer.frame) {
+      viewer.frame.blur();
+    }
     viewer?.destroy();
     viewer = null;
     // Retries because Windows keeps a directory non-empty until the last handle on a child
@@ -38,6 +44,9 @@ describe("Viewer element", () => {
     jasmine.attachToDOM(viewer.element);
     viewer.element.focus();
     expect(document.activeElement).toBe(viewer.frame);
+
+    viewer.frame.blur();
+    expect(document.activeElement).not.toBe(viewer.frame);
   });
 
   it("removes the whole item view on destroy", () => {
