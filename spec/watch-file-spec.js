@@ -3,13 +3,13 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-// The PDF viewer watched its backing .pdf with the removed synchronous lumine
+// The PDF view watched its backing .pdf with the removed synchronous lumine
 // `File` API (onDidChange/onDidDelete/onDidRename + getPath). Lumine replaced
 // File with the async watchFile. These specs pin the parts of the watchFile
 // contract the viewer relies on. The handle exposes its emitter so events can be
 // synthesized without depending on filesystem timing, and owns a native watcher
 // that must be disposed (the viewer adds an explicit Disposable for that).
-describe("watchFile (pdf viewer file watcher migration)", () => {
+describe("watchFile (pdf view file watcher migration)", () => {
   let dir, file, handle;
 
   beforeEach(() => {

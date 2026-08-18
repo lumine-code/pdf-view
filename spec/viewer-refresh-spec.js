@@ -3,7 +3,7 @@ const os = require("os");
 const path = require("path");
 const Viewer = require("../lib/viewer");
 
-describe("PDF viewer auto-refresh", () => {
+describe("PDF view auto-refresh", () => {
   let dir, file, viewer;
 
   beforeEach(() => {

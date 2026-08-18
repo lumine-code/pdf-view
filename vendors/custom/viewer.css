@@ -93,7 +93,7 @@ textarea {
   }
 }
 
-/* Disable Chromium's default focus outline in the PDF viewer */
+/* Disable Chromium's default focus outline in the PDF view */
 #outerContainer :focus-visible {
   outline: none !important;
 }

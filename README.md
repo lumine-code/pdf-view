@@ -22,7 +22,7 @@ To install `pdf-view` search for it in the Install pane of the Lumine settings, 
 
 Commands available in `lumine-workspace`:
 
-- `pdf-view:reload-all`: reload all open PDF viewers,
+- `pdf-view:reload-all`: reload all open PDF views,
 - `pdf-view:refresh`: refresh content for the current viewer,
 - `pdf-view:toggle-refreshing`: toggle auto-refresh for the current viewer,
 - `pdf-view:compile`: compile the source `.typ` or `.tex` file,
@@ -97,7 +97,7 @@ When both `.typ` and `.tex` source files exist, the Typst source takes priority.
 
 ## Services
 
-- [`pdf-view`](docs/pdf-view.md): provided to let other packages manage PDF viewers programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
+- [`pdf-view`](docs/pdf-view.md): provided to let other packages manage PDF views programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
 - `navigation.adapter`: provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
 - `latex-tools`: consumed to compile `.tex` sources and resolve SyncTeX positions for backward search.
 - `typst-tools`: consumed to compile `.typ` sources.

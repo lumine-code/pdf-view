@@ -1,6 +1,6 @@
 # pdf-view
 
-Drives PDF viewers from another package: observe them, open one, look one up, scroll it to a named destination, or swap its file.
+Drives PDF views from another package: observe them, open one, look one up, scroll it to a named destination, or swap its file.
 
 |             |                                                       |
 | ----------- | ----------------------------------------------------- |
