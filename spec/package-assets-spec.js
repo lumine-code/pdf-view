@@ -15,28 +15,28 @@ const parseJsonc = (rel) => JSON.parse(read(rel).replace(/^\s*\/\/.*$/gm, ""));
 // cross-package service contracts (navigation.adapter, scrollmap.widget) are preserved.
 describe("pdf-view package assets", () => {
   it("ships keymaps and menus as JSON (comments allowed), not CSON or JSONC", () => {
-    expect(exists("keymaps/pdf-view.json")).toBe(true);
-    expect(exists("menus/pdf-view.json")).toBe(true);
+    expect(exists("keymaps/main.json")).toBe(true);
+    expect(exists("menus/main.json")).toBe(true);
     expect(exists("keymaps/pdf-viewer.cson")).toBe(false);
     expect(exists("menus/pdf-viewer.cson")).toBe(false);
-    expect(exists("keymaps/pdf-view.jsonc")).toBe(false);
-    expect(exists("menus/pdf-view.jsonc")).toBe(false);
+    expect(exists("keymaps/main.jsonc")).toBe(false);
+    expect(exists("menus/main.jsonc")).toBe(false);
   });
 
   it("parses the keymap under the renamed selector and binds pdf-view commands", () => {
-    const keymap = parseJsonc("keymaps/pdf-view.json");
+    const keymap = parseJsonc("keymaps/main.json");
     expect(keymap[".pdf-view"]).toBeDefined();
     expect(keymap[".pdf-viewer"]).toBeUndefined();
     expect(keymap[".pdf-view"]["f5"]).toBe("pdf-view:refresh");
-    expect(read("keymaps/pdf-view.json")).not.toContain("pdf-viewer:");
+    expect(read("keymaps/main.json")).not.toContain("pdf-viewer:");
   });
 
   it("parses the menu, uses `command`, and carries no pdf-viewer commands", () => {
-    const menu = parseJsonc("menus/pdf-view.json");
+    const menu = parseJsonc("menus/main.json");
     expect(Array.isArray(menu.menu)).toBe(true);
     const flat = JSON.stringify(menu);
     expect(flat).not.toContain('"commands"');
-    expect(read("menus/pdf-view.json")).not.toContain("pdf-viewer:");
+    expect(read("menus/main.json")).not.toContain("pdf-viewer:");
     expect(flat).toContain("pdf-view:refresh");
   });
 
@@ -73,8 +73,8 @@ describe("pdf-view package assets", () => {
         if (item.submenu) walk(item.submenu);
       }
     };
-    walk(parseJsonc("menus/pdf-view.json").menu);
-    named.push(...Object.values(parseJsonc("keymaps/pdf-view.json")[".pdf-view"]));
+    walk(parseJsonc("menus/main.json").menu);
+    named.push(...Object.values(parseJsonc("keymaps/main.json")[".pdf-view"]));
 
     expect(named.length).toBeGreaterThan(0);
     for (const command of named) {
@@ -84,14 +84,14 @@ describe("pdf-view package assets", () => {
 
   it("keeps the config JSON free of trailing commas", () => {
     // House style allows // comments but forbids trailing commas.
-    expect(read("keymaps/pdf-view.json")).not.toMatch(/,\s*[}\]]/);
-    expect(read("menus/pdf-view.json")).not.toMatch(/,\s*[}\]]/);
+    expect(read("keymaps/main.json")).not.toMatch(/,\s*[}\]]/);
+    expect(read("menus/main.json")).not.toMatch(/,\s*[}\]]/);
   });
 
   it("ships CSS stylesheets built on custom properties, not Less", () => {
-    expect(exists("styles/pdf-view.css")).toBe(true);
+    expect(exists("styles/main.css")).toBe(true);
     expect(exists("styles/pdf-viewer.less")).toBe(false);
-    const css = read("styles/pdf-view.css");
+    const css = read("styles/main.css");
     expect(css).toContain("var(--");
     expect(css).not.toContain('@import "ui-variables"');
     expect(css).toContain(".pdf-view-scrollmap");
