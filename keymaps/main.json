@@ -1,7 +1,8 @@
 {
-  // Bindings apply while a PDF viewer iframe (class `.pdf-view`) holds focus.
-  // Keystrokes captured inside the PDF.js document are redispatched onto this
-  // element, so these fire whether focus is on the frame or its contents.
+  // Bindings apply while a PDF viewer (the `.pdf-view` item view, a wrapper
+  // around the PDF.js iframe) holds focus. Keystrokes captured inside the
+  // PDF.js document are redispatched onto the wrapper, so these fire whether
+  // focus is on the frame or its contents.
   ".pdf-view": {
     "f5": "pdf-view:refresh",
     "ctrl-f5": "pdf-view:toggle-refreshing",

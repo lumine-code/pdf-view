@@ -72,28 +72,30 @@ if (themeSubscription) {
 let cachedOutline = null;
 let pendingRefreshData = null;
 
+// The pane hides an inactive tab by writing `display: none` onto the item
+// view -- the wrapper around this iframe -- so visibility is read from the
+// wrapper as well as the frame itself (same origin, so both are reachable).
+function isHiddenInHost() {
+  const frame = window.frameElement;
+  if (!frame) return false;
+  return frame.style.display === "none" || frame.parentElement?.style.display === "none";
+}
+
 // Watch for visibility changes to handle pending refresh when tab becomes visible
 function setupVisibilityObserver() {
-  if (!window.frameElement) return;
+  const wrapper = window.frameElement?.parentElement;
+  if (!wrapper) return;
 
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (
-        mutation.type === "attributes" &&
-        mutation.attributeName === "style"
-      ) {
-        const display = window.frameElement.style.display;
-        if (display !== "none" && pendingRefreshData) {
-          // We just became visible and have a pending refresh
-          const data = pendingRefreshData;
-          pendingRefreshData = null;
-          refreshContents(data);
-        }
-      }
+  const observer = new MutationObserver(() => {
+    if (!isHiddenInHost() && pendingRefreshData) {
+      // We just became visible and have a pending refresh
+      const data = pendingRefreshData;
+      pendingRefreshData = null;
+      refreshContents(data);
     }
   });
 
-  observer.observe(window.frameElement, {
+  observer.observe(wrapper, {
     attributes: true,
     attributeFilter: ["style"],
   });
@@ -405,7 +407,7 @@ window.addEventListener("message", (message) => {
 let lastParams = { page: 1, zoom: parent.lumine?.config?.get("pdf-view.defaultZoom") || "auto" };
 
 function refreshContents(data) {
-  if (window.frameElement && window.frameElement.style.display === "none") {
+  if (isHiddenInHost()) {
     // Store the refresh request for when we become visible
     pendingRefreshData = data;
     return;

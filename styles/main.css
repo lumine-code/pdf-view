@@ -1,12 +1,10 @@
-.pdf-view {
+/* The item view (div.pdf-view) is sized by core's pane styles; the iframe
+   fills it. */
+.pdf-view-frame {
   border: none;
+  display: block;
   width: 100%;
   height: 100%;
-}
-
-/* Ensure the pane item container has position relative for absolute positioning */
-.item-views > .pane > .item-views {
-  position: relative;
 }
 
 .pdf-view-scrollmap.simplemap .marker {
