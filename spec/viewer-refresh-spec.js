@@ -40,6 +40,20 @@ describe("PDF view auto-refresh", () => {
     expect(viewer.fileStableTimeout).toBeNull();
   });
 
+  it("ignores a metadata-only change, like the read that loading the PDF performs", () => {
+    const mtime = new Date(2026, 0, 1, 12, 0, 0);
+    fs.utimesSync(file, mtime, mtime);
+    viewer.loadedFileState = viewer.getFileState();
+
+    // Loading the PDF reads the file, which updates its access time — and on
+    // Windows the ChangeTime (ctimeMs) with it — without touching the contents.
+    fs.utimesSync(file, new Date(2026, 0, 1, 13, 0, 0), mtime);
+    viewer.scheduleStableRefresh();
+
+    expect(viewer.refresh).not.toHaveBeenCalled();
+    expect(viewer.fileStableTimeout).toBeNull();
+  });
+
   it("refreshes once after a changed PDF remains stable", () => {
     fs.writeFileSync(file, "%PDF-1.7\nupdated document contents\n%%EOF\n");
 
