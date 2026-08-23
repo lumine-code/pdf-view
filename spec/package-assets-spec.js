@@ -31,6 +31,34 @@ describe("pdf-view package assets", () => {
     expect(read("keymaps/main.json")).not.toContain("pdf-viewer:");
   });
 
+  it("binds the bare zoom and fit keys PDF.js leaves free", () => {
+    // PDF.js zooms on Ctrl alone and binds no bare letter for either fit
+    // preset, so these keys reach nothing inside the iframe unless the keymap
+    // claims them. `.image-editor` and `.graviss` spell the same four zoom keys.
+    const bindings = parseJsonc("keymaps/main.json")[".pdf-view"];
+    expect(bindings["f"]).toBe("pdf-view:page-fit");
+    expect(bindings["w"]).toBe("pdf-view:page-width");
+    expect(bindings["="]).toBe("pdf-view:zoom-in");
+    expect(bindings["+"]).toBe("pdf-view:zoom-in");
+    expect(bindings["-"]).toBe("pdf-view:zoom-out");
+    expect(bindings["_"]).toBe("pdf-view:zoom-out");
+  });
+
+  it("shadows every core binding that would otherwise fire inside a PDF", () => {
+    // A command event counts as handled even with no listener, so a core
+    // binding that reaches `.pdf-view` both acts on the window and is
+    // preventDefault'd — which stops the redispatch bridge from ever handing
+    // the key back to PDF.js. Core binds all four zoom keys and backspace at
+    // `body`; shadowing three of the four left Ctrl+Shift+Minus resizing the
+    // window font from inside a PDF, and backspace doing nothing at all.
+    const bindings = parseJsonc("keymaps/main.json")[".pdf-view"];
+    for (const keystroke of ["cmdorctrl-=", "cmdorctrl-+", "cmdorctrl--", "cmdorctrl-_"]) {
+      expect(bindings[keystroke]).toMatch(/^pdf-view:zoom-(in|out)$/);
+    }
+    expect(bindings["backspace"]).toBe("pdf-view:page-up");
+    expect(bindings["shift-backspace"]).toBe("pdf-view:page-up");
+  });
+
   it("parses the menu, uses `command`, and carries no pdf-viewer commands", () => {
     const menu = parseJsonc("menus/main.json");
     expect(Array.isArray(menu.menu)).toBe(true);

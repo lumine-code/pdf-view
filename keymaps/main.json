@@ -15,6 +15,12 @@
     "pagedown": "pdf-view:page-down",
     "space": "pdf-view:page-down",
     "shift-space": "pdf-view:page-up",
+    // Core binds `backspace` at `body`, and a command event counts as handled
+    // even with no listener, so without this the key is swallowed before the
+    // iframe ever sees it. PDF.js turns a page on backspace only at page-fit
+    // zoom; scrolling unconditionally is the better behaviour.
+    "backspace": "pdf-view:page-up",
+    "shift-backspace": "pdf-view:page-up",
     "home": "pdf-view:first-page",
     "end": "pdf-view:last-page",
     "enter": "pdf-view:next-page",
@@ -27,6 +33,19 @@
     "cmdorctrl-+": "pdf-view:zoom-in",
     "cmdorctrl--": "pdf-view:zoom-out",
     "cmdorctrl-0": "pdf-view:zoom-reset",
+    // Core binds all four of `cmdorctrl-=/+/-/_` at `body`; shadowing only
+    // three left Ctrl+Shift+Minus resizing the window font from inside a PDF.
+    "cmdorctrl-_": "pdf-view:zoom-out",
+    // PDF.js zooms on Ctrl alone, so the bare keys reach nothing and are free.
+    // `.image-editor` and `.graviss` spell the same four.
+    "=": "pdf-view:zoom-in",
+    "+": "pdf-view:zoom-in",
+    "-": "pdf-view:zoom-out",
+    "_": "pdf-view:zoom-out",
+    // The two fit presets a reader reaches for. `cmdorctrl-0` returns to
+    // automatic zoom, which is neither of them.
+    "f": "pdf-view:page-fit",
+    "w": "pdf-view:page-width",
     "r": "pdf-view:rotate-clockwise",
     "shift-r": "pdf-view:rotate-counterclockwise",
     "s": "pdf-view:select-tool",
