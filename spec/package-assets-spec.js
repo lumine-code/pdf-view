@@ -89,6 +89,15 @@ describe("pdf-view package assets", () => {
     }
   });
 
+  it("ties the iframe's load-failure report to the handler that consumes it", () => {
+    // The failure report crosses the same two-file boundary as the forwarded
+    // commands: the iframe posts `loadError` and lib/viewer.js recovers from
+    // it. A renamed message type on either side breaks restore recovery
+    // silently, so pin both spellings to each other.
+    expect(read("vendors/custom/viewer.js")).toContain('parent.postMessage({ type: "loadError" })');
+    expect(read("lib/viewer.js")).toContain("loadError: () => this.handleLoadErrorMessage()");
+  });
+
   it("names only registered commands in the menu and the keymap", () => {
     const registered = new Set([
       "pdf-view:reload-all",

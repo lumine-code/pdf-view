@@ -115,6 +115,14 @@ window.onload = () => {
   setupVisibilityObserver();
   parent.postMessage({ type: "ready" });
 
+  // A document that fails to load has no pagesinit. Report the failure so the
+  // host can retry when the file settles: a restart can catch the PDF mid-write,
+  // and the write that finishes it can beat the host's watcher arming, so the
+  // host must not rely on a watcher event to learn the load went wrong.
+  PDFViewerApplication.eventBus.on("documenterror", () => {
+    parent.postMessage({ type: "loadError" });
+  });
+
   PDFViewerApplication.eventBus.on("pagesinit", async () => {
     cachedOutline = null;
     const outline = await PDFViewerApplication.pdfDocument.getOutline();

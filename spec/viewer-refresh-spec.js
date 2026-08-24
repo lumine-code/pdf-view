@@ -17,6 +17,8 @@ describe("PDF view auto-refresh", () => {
     viewer.refreshTimeout = null;
     viewer.pendingFileState = null;
     viewer.loadedFileState = viewer.getFileState();
+    viewer.loadErrorRetries = 0;
+    viewer.lastFailedFileState = null;
     viewer.debug = false;
     viewer.refresh = jasmine.createSpy("refresh");
   });
@@ -77,6 +79,66 @@ describe("PDF view auto-refresh", () => {
     expect(viewer.refresh).not.toHaveBeenCalled();
 
     globalThis.advanceClock(1);
+    expect(viewer.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers from a failed document load without a watcher event", () => {
+    // The file on disk is complete and unchanged since reload() fingerprinted
+    // it -- the load failed for another reason (a transient lock). No watcher
+    // event will ever arrive, so the loadError report alone must get back to a
+    // refresh once the stability loop finds the file stable and valid.
+    viewer.handleLoadErrorMessage();
+    expect(viewer.loadedFileState).toBeNull();
+
+    globalThis.advanceClock(199);
+    expect(viewer.refresh).not.toHaveBeenCalled();
+    globalThis.advanceClock(1);
+    expect(viewer.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops retrying after the same file state fails three times", () => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      viewer.handleLoadErrorMessage();
+      globalThis.advanceClock(200);
+    }
+    expect(viewer.refresh).toHaveBeenCalledTimes(3);
+
+    // The fourth failure of identical bytes is a broken file, not a race.
+    viewer.handleLoadErrorMessage();
+    globalThis.advanceClock(200);
+    expect(viewer.refresh).toHaveBeenCalledTimes(3);
+    expect(viewer.fileStableTimeout).toBeNull();
+  });
+
+  it("grants a changed file a fresh retry budget", () => {
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      viewer.handleLoadErrorMessage();
+      globalThis.advanceClock(200);
+    }
+    expect(viewer.refresh).toHaveBeenCalledTimes(3);
+
+    // The build wrote new bytes: the old failure's budget no longer applies.
+    fs.writeFileSync(file, "%PDF-1.7\nrewritten by the build\n%%EOF\n");
+    viewer.handleLoadErrorMessage();
+    globalThis.advanceClock(200);
+    expect(viewer.refresh).toHaveBeenCalledTimes(4);
+  });
+
+  it("waits for a mid-write file to settle before the recovery refresh", () => {
+    // The failed fetch read a truncated file and the build is still writing:
+    // the loop must hold the refresh until the trailer is on disk.
+    fs.writeFileSync(file, "%PDF-1.7\ntruncated middle of a write");
+    viewer.handleLoadErrorMessage();
+    globalThis.advanceClock(200);
+    expect(viewer.refresh).not.toHaveBeenCalled();
+
+    fs.writeFileSync(file, "%PDF-1.7\nthe write completed\n%%EOF\n");
+    // The first check sees the fingerprint move and re-arms; only the second
+    // finds it stable. advanceClock fires no timer armed during the advance,
+    // so each check needs its own step.
+    globalThis.advanceClock(200);
+    expect(viewer.refresh).not.toHaveBeenCalled();
+    globalThis.advanceClock(200);
     expect(viewer.refresh).toHaveBeenCalledTimes(1);
   });
 
