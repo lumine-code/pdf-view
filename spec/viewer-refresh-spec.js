@@ -15,10 +15,10 @@ describe("PDF view auto-refresh", () => {
     viewer.file = { getPath: () => file };
     viewer.fileStableTimeout = null;
     viewer.refreshTimeout = null;
-    viewer.pendingFileState = null;
-    viewer.loadedFileState = viewer.getFileState();
+    viewer.pendingDiskFingerprint = null;
+    viewer.loadedDiskFingerprint = viewer.getDiskFingerprint();
     viewer.loadErrorRetries = 0;
-    viewer.lastFailedFileState = null;
+    viewer.lastFailedDiskFingerprint = null;
     viewer.debug = false;
     viewer.refresh = jasmine.createSpy("refresh");
   });
@@ -45,7 +45,7 @@ describe("PDF view auto-refresh", () => {
   it("ignores a metadata-only change, like the read that loading the PDF performs", () => {
     const mtime = new Date(2026, 0, 1, 12, 0, 0);
     fs.utimesSync(file, mtime, mtime);
-    viewer.loadedFileState = viewer.getFileState();
+    viewer.loadedDiskFingerprint = viewer.getDiskFingerprint();
 
     // Loading the PDF reads the file, which updates its access time — and on
     // Windows the ChangeTime (ctimeMs) with it — without touching the contents.
@@ -65,7 +65,9 @@ describe("PDF view auto-refresh", () => {
 
     globalThis.advanceClock(1);
     expect(viewer.refresh).toHaveBeenCalledTimes(1);
-    expect(viewer.fileStatesEqual(viewer.loadedFileState, viewer.getFileState())).toBe(true);
+    expect(
+      viewer.diskFingerprintsEqual(viewer.loadedDiskFingerprint, viewer.getDiskFingerprint()),
+    ).toBe(true);
   });
 
   it("restarts the quiet period when another watcher event arrives", () => {
@@ -88,7 +90,7 @@ describe("PDF view auto-refresh", () => {
     // event will ever arrive, so the loadError report alone must get back to a
     // refresh once the stability loop finds the file stable and valid.
     viewer.handleLoadErrorMessage();
-    expect(viewer.loadedFileState).toBeNull();
+    expect(viewer.loadedDiskFingerprint).toBeNull();
 
     globalThis.advanceClock(199);
     expect(viewer.refresh).not.toHaveBeenCalled();

@@ -56,4 +56,16 @@ describe("Viewer element", () => {
     viewer = null;
     expect(element.parentNode).toBeNull();
   });
+
+  it("reports removed until the backing file becomes available again", () => {
+    const states = [];
+    viewer.onDidChangeFileState((state) => states.push(state));
+
+    viewer.file.emitter.emit("did-delete");
+    expect(viewer.getFileState()).toBe(lumine.FileState.REMOVED);
+
+    viewer.file.emitter.emit("did-change");
+    expect(viewer.getFileState()).toBe(lumine.FileState.UNMODIFIED);
+    expect(states).toEqual([lumine.FileState.REMOVED, lumine.FileState.UNMODIFIED]);
+  });
 });

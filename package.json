@@ -88,12 +88,6 @@
       "type": "integer",
       "default": 1000
     },
-    "closeDeleted": {
-      "title": "Close panel if file deleted",
-      "description": "Set to true to automatically close the pdf-view when the disk file is deleted.",
-      "type": "boolean",
-      "default": true
-    },
     "defaultZoom": {
       "title": "Default zoom",
       "description": "The default zoom level when opening a PDF.",
