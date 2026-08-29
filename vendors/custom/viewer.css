@@ -77,18 +77,18 @@ textarea {
 }
 
 .page,
-.thumbnailImage {
+.thumbnailImageContainer > img {
   transition: filter 200ms ease-in-out;
 }
 
 .pdf-view-colors-inverted .page,
-.pdf-view-colors-inverted .thumbnailImage {
+.pdf-view-colors-inverted .thumbnailImageContainer > img {
   filter: invert(100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .page,
-  .thumbnailImage {
+  .thumbnailImageContainer > img {
     transition: none;
   }
 }

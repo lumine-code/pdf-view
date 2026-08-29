@@ -109,7 +109,6 @@ window.onload = () => {
     parent.lumine?.config?.get("pdf-view.defaultZoom") || "auto");
   PDFViewerApplicationOptions.set("enableScripting", false);
   PDFViewerApplicationOptions.set("externalLinkTarget", 4);
-  PDFViewerApplicationOptions.set("isEvalSupported", false);
   PDFViewerApplicationOptions.set("disableHistory", true);
   PDFViewerApplicationOptions.set("verbosity", 0);
   setupVisibilityObserver();
@@ -430,6 +429,7 @@ let lastParams = { page: 1, zoom: parent.lumine?.config?.get("pdf-view.defaultZo
 function captureViewState() {
   const app = PDFViewerApplication;
   const pdfViewer = app.pdfViewer;
+  const viewsManager = app.viewsManager;
   const container = pdfViewer?.container;
   return {
     page: app.page || 1,
@@ -440,8 +440,8 @@ function captureViewState() {
     rotation: pdfViewer?.pagesRotation || 0,
     scrollMode: pdfViewer?.scrollMode,
     spreadMode: pdfViewer?.spreadMode,
-    sidebarOpen: Boolean(app.pdfSidebar?.isOpen),
-    sidebarView: app.pdfSidebar?.visibleView,
+    sidebarOpen: Boolean(viewsManager?.isOpen),
+    sidebarView: viewsManager?.visibleView,
   };
 }
 
@@ -468,11 +468,11 @@ async function restoreViewState(state) {
   if (Number.isFinite(state.page)) app.page = state.page;
   if (state.hash) app.pdfLinkService?.setHash?.(state.hash.replace(/^#/, ""));
 
-  const sidebar = app.pdfSidebar;
-  if (sidebar && Number.isInteger(state.sidebarView) && state.sidebarView > 0) {
-    sidebar.switchView(state.sidebarView, Boolean(state.sidebarOpen));
-  } else if (sidebar?.isOpen && !state.sidebarOpen) {
-    sidebar.close();
+  const viewsManager = app.viewsManager;
+  if (viewsManager && Number.isInteger(state.sidebarView) && state.sidebarView > 0) {
+    viewsManager.switchView(state.sidebarView, Boolean(state.sidebarOpen));
+  } else if (viewsManager?.isOpen && !state.sidebarOpen) {
+    viewsManager.close();
   }
 
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));

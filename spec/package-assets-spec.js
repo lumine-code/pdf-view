@@ -143,6 +143,15 @@ describe("pdf-view package assets", () => {
     expect(css).toContain(".pdf-view-colors-inverted");
   });
 
+  it("inverts the thumbnail image element that PDF.js actually renders", () => {
+    const custom = read("vendors/custom/viewer.css");
+    const pdfViewer = read("vendors/pdfjs-dist/web/viewer.mjs");
+    expect(pdfViewer).toContain('imageContainer.classList.add("thumbnailImageContainer"');
+    expect(pdfViewer).toContain("imageContainer.append(image)");
+    expect(custom).toContain(".thumbnailImageContainer > img");
+    expect(custom).not.toMatch(/\.thumbnailImage\s*[{,]/);
+  });
+
   it("fills page-width and mirrors the host scrollbar width into the iframe", () => {
     const pdfViewer = read("vendors/pdfjs-dist/web/viewer.mjs");
     const constructor = pdfViewer.match(
@@ -207,6 +216,15 @@ describe("pdf-view package assets", () => {
     expect(custom).toContain('eventBus.on("pagechanging", scheduleCurrentDest)');
     expect(custom).toContain('eventBus.on("updateviewarea", scheduleCurrentDest)');
     expect(custom).toMatch(/function scheduleCurrentDest\(\)[\s\S]*setTimeout/);
+  });
+
+  it("captures and restores sidebar state through PDF.js's views manager", () => {
+    const custom = read("vendors/custom/viewer.js");
+    expect(custom).toContain("const viewsManager = app.viewsManager");
+    expect(custom).toContain("sidebarOpen: Boolean(viewsManager?.isOpen)");
+    expect(custom).toContain("sidebarView: viewsManager?.visibleView");
+    expect(custom).toContain("viewsManager.switchView(state.sidebarView");
+    expect(custom).not.toContain("app.pdfSidebar");
   });
 
   it("renews its subscriptions in setFile so the watchFile watcher is not leaked", () => {
