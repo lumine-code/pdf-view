@@ -408,82 +408,10 @@ window.addEventListener("message", (message) => {
     return spawnCurrentDest(message.data);
   } else if (message.data.type === "command") {
     return runViewerCommand(message.data.command);
-  } else if (message.data.type === "get-view-state") {
-    return parent.postMessage({
-      type: "viewState",
-      requestId: message.data.requestId,
-      state: captureViewState(),
-    });
-  } else if (message.data.type === "restore-view-state") {
-    return restoreViewState(message.data.state).finally(() => {
-      parent.postMessage({
-        type: "viewStateRestored",
-        requestId: message.data.requestId,
-      });
-    });
   }
 });
 
 let lastParams = { page: 1, zoom: parent.lumine?.config?.get("pdf-view.defaultZoom") || "auto" };
-
-function captureViewState() {
-  const app = PDFViewerApplication;
-  const pdfViewer = app.pdfViewer;
-  const viewsManager = app.viewsManager;
-  const container = pdfViewer?.container;
-  return {
-    page: app.page || 1,
-    zoom: pdfViewer?.currentScaleValue || lastParams.zoom,
-    scrollTop: container?.scrollTop || 0,
-    scrollLeft: container?.scrollLeft || 0,
-    hash: window.location.hash,
-    rotation: pdfViewer?.pagesRotation || 0,
-    scrollMode: pdfViewer?.scrollMode,
-    spreadMode: pdfViewer?.spreadMode,
-    sidebarOpen: Boolean(viewsManager?.isOpen),
-    sidebarView: viewsManager?.visibleView,
-  };
-}
-
-async function restoreViewState(state) {
-  if (!state) return;
-  const app = PDFViewerApplication;
-  const pdfViewer = app.pdfViewer;
-  if (!pdfViewer) return;
-
-  if (!app.pagesCount) {
-    await new Promise((resolve) => {
-      const ready = () => {
-        app.eventBus.off("pagesloaded", ready);
-        resolve();
-      };
-      app.eventBus.on("pagesloaded", ready);
-    });
-  }
-
-  if (Number.isInteger(state.scrollMode)) setScrollMode(state.scrollMode);
-  if (Number.isInteger(state.spreadMode)) setSpreadMode(state.spreadMode);
-  if (Number.isFinite(state.rotation)) pdfViewer.pagesRotation = state.rotation;
-  if (state.zoom != null) pdfViewer.currentScaleValue = state.zoom;
-  if (Number.isFinite(state.page)) app.page = state.page;
-  if (state.hash) app.pdfLinkService?.setHash?.(state.hash.replace(/^#/, ""));
-
-  const viewsManager = app.viewsManager;
-  if (viewsManager && Number.isInteger(state.sidebarView) && state.sidebarView > 0) {
-    viewsManager.switchView(state.sidebarView, Boolean(state.sidebarOpen));
-  } else if (viewsManager?.isOpen && !state.sidebarOpen) {
-    viewsManager.close();
-  }
-
-  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  pdfViewer.container?.scrollTo({
-    top: Number.isFinite(state.scrollTop) ? state.scrollTop : 0,
-    left: Number.isFinite(state.scrollLeft) ? state.scrollLeft : 0,
-  });
-  lastParams.page = app.page || state.page || 1;
-  lastParams.zoom = pdfViewer.currentScaleValue || state.zoom || lastParams.zoom;
-  spawnCurrentDest();
-}
 
 function refreshContents(data) {
   if (isHiddenInHost()) {

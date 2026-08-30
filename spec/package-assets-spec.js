@@ -218,15 +218,6 @@ describe("pdf-view package assets", () => {
     expect(custom).toMatch(/function scheduleCurrentDest\(\)[\s\S]*setTimeout/);
   });
 
-  it("captures and restores sidebar state through PDF.js's views manager", () => {
-    const custom = read("vendors/custom/viewer.js");
-    expect(custom).toContain("const viewsManager = app.viewsManager");
-    expect(custom).toContain("sidebarOpen: Boolean(viewsManager?.isOpen)");
-    expect(custom).toContain("sidebarView: viewsManager?.visibleView");
-    expect(custom).toContain("viewsManager.switchView(state.sidebarView");
-    expect(custom).not.toContain("app.pdfSidebar");
-  });
-
   it("renews its subscriptions in setFile so the watchFile watcher is not leaked", () => {
     // A CompositeDisposable stays disposed once disposed, so `add()` after
     // dispose is a no-op. watchFile owns a native watcher that must be disposed;

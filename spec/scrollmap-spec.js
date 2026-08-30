@@ -1,8 +1,7 @@
 const PdfScrollmap = require("../lib/scrollmap");
 
 class FakeSimplemap {
-  constructor(document) {
-    this.document = document;
+  constructor() {
     this.element = document.createElement("div");
     this.items = null;
   }
@@ -43,7 +42,6 @@ describe("PdfScrollmap", () => {
     dataCallback({ items: [{ percent: 10, level: 0 }] });
 
     expect(strip().element.parentNode).toBe(viewer.element);
-    expect(strip().document).toBe(viewer.element.ownerDocument);
     expect(strip().element.style.display).toBe("block");
     expect(strip().items).toEqual([{ prc: 10, cls: "marker-pdf-h1" }]);
   });
