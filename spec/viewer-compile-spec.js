@@ -11,7 +11,7 @@ describe("PDF source compilation", () => {
     pdfPath = path.join(directory, "document.pdf");
     fs.writeFileSync(pdfPath, "%PDF-1.7\n%%EOF\n");
     viewer = Object.create(Viewer.prototype);
-    viewer.file = { getPath: () => pdfPath };
+    viewer.file = { path: pdfPath };
     viewer.debug = false;
   });
 

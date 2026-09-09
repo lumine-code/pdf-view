@@ -217,14 +217,4 @@ describe("pdf-view package assets", () => {
     expect(custom).toContain('eventBus.on("updateviewarea", scheduleCurrentDest)');
     expect(custom).toMatch(/function scheduleCurrentDest\(\)[\s\S]*setTimeout/);
   });
-
-  it("renews its subscriptions in setFile so the watchFile watcher is not leaked", () => {
-    // A CompositeDisposable stays disposed once disposed, so `add()` after
-    // dispose is a no-op. watchFile owns a native watcher that must be disposed;
-    // setFile must therefore install a fresh CompositeDisposable, not re-add to
-    // the disposed one (which would silently drop the watcher's disposal).
-    const viewer = read("lib/viewer.js");
-    expect(viewer).toMatch(/this\.subscriptions\s*=\s*new CompositeDisposable\(\)/);
-    expect(viewer).toContain("file.dispose()");
-  });
 });

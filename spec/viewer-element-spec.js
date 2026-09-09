@@ -61,10 +61,12 @@ describe("Viewer element", () => {
     const states = [];
     viewer.onDidChangeFileState((state) => states.push(state));
 
-    viewer.file.emitter.emit("did-delete");
+    fs.unlinkSync(file);
+    viewer.reconcileFile();
     expect(viewer.getFileState()).toBe(lumine.FileState.REMOVED);
 
-    viewer.file.emitter.emit("did-change");
+    fs.writeFileSync(file, "%PDF-1.7\nrecreated\n%%EOF\n");
+    viewer.reconcileFile();
     expect(viewer.getFileState()).toBe(lumine.FileState.UNMODIFIED);
     expect(states).toEqual([lumine.FileState.REMOVED, lumine.FileState.UNMODIFIED]);
   });

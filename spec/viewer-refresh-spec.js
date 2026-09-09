@@ -12,7 +12,7 @@ describe("PDF view auto-refresh", () => {
     fs.writeFileSync(file, "%PDF-1.7\ninitial\n%%EOF\n");
 
     viewer = Object.create(Viewer.prototype);
-    viewer.file = { getPath: () => file };
+    viewer.file = { path: file };
     viewer.fileStableTimeout = null;
     viewer.refreshTimeout = null;
     viewer.pendingDiskFingerprint = null;
