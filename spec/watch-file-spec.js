@@ -32,6 +32,7 @@ describe("PDF file observation", () => {
     const rename = { oldPath: filePath, newPath: target, isDirectory: false };
     const move = lumine.workspace.beginFileMove([rename]);
     const previous = viewer.file;
+    await move.ready;
     fs.renameSync(filePath, target);
     await move.complete([rename]);
     await previous.closed;
