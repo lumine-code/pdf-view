@@ -164,55 +164,5 @@
     "eslint-plugin-n": "^18.3.0",
     "globals": "^17.11.0",
     "prettier": "^3.9.6"
-  },
-  "workspaceOpeners": [
-    {
-      "pathSuffixes": [
-        ".pdf"
-      ]
-    }
-  ],
-  "activationCommands": {
-    "lumine-workspace": [
-      "pdf-view:compile",
-      "pdf-view:copy",
-      "pdf-view:download",
-      "pdf-view:find",
-      "pdf-view:find-next",
-      "pdf-view:find-previous",
-      "pdf-view:first-page",
-      "pdf-view:hand-tool",
-      "pdf-view:last-page",
-      "pdf-view:next-page",
-      "pdf-view:open-tex",
-      "pdf-view:page-actual",
-      "pdf-view:page-down",
-      "pdf-view:page-fit",
-      "pdf-view:page-up",
-      "pdf-view:page-width",
-      "pdf-view:presentation-mode",
-      "pdf-view:previous-page",
-      "pdf-view:refresh",
-      "pdf-view:reload-all",
-      "pdf-view:rotate-clockwise",
-      "pdf-view:rotate-counterclockwise",
-      "pdf-view:scroll-down",
-      "pdf-view:scroll-left",
-      "pdf-view:scroll-mode-horizontal",
-      "pdf-view:scroll-mode-page",
-      "pdf-view:scroll-mode-vertical",
-      "pdf-view:scroll-mode-wrapped",
-      "pdf-view:scroll-right",
-      "pdf-view:scroll-up",
-      "pdf-view:select-tool",
-      "pdf-view:spread-even",
-      "pdf-view:spread-none",
-      "pdf-view:spread-odd",
-      "pdf-view:toggle-refreshing",
-      "pdf-view:toggle-sidebar",
-      "pdf-view:zoom-in",
-      "pdf-view:zoom-out",
-      "pdf-view:zoom-reset"
-    ]
   }
 }

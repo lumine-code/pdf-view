@@ -55,6 +55,40 @@ describe("PDF source compilation", () => {
     expect(typstTools.compile).toHaveBeenCalledWith(sourcePath);
   });
 
+  it("requests only the toolchain matching the source beside the PDF", async () => {
+    const sourcePath = path.join(directory, "document.typ");
+    fs.writeFileSync(sourcePath, "content");
+    spyOn(lumine.workspace, "getTextEditors").and.returnValue([]);
+    const typstTools = { compile: jasmine.createSpy("compile") };
+    viewer.getTypstTools = () => null;
+    viewer.getLatexTools = () => null;
+    viewer.requestTypstTools = jasmine.createSpy("requestTypstTools").and.resolveTo(typstTools);
+    viewer.requestLatexTools = jasmine.createSpy("requestLatexTools");
+
+    await viewer.compile();
+
+    expect(viewer.requestTypstTools).toHaveBeenCalled();
+    expect(viewer.requestLatexTools).not.toHaveBeenCalled();
+    expect(typstTools.compile).toHaveBeenCalledWith(sourcePath);
+  });
+
+  it("does not request Typst when only a LaTeX source exists", async () => {
+    const sourcePath = path.join(directory, "document.tex");
+    fs.writeFileSync(sourcePath, "content");
+    spyOn(lumine.workspace, "getTextEditors").and.returnValue([]);
+    const latexTools = { compile: jasmine.createSpy("compile") };
+    viewer.getTypstTools = () => null;
+    viewer.getLatexTools = () => null;
+    viewer.requestTypstTools = jasmine.createSpy("requestTypstTools");
+    viewer.requestLatexTools = jasmine.createSpy("requestLatexTools").and.resolveTo(latexTools);
+
+    await viewer.compile();
+
+    expect(viewer.requestTypstTools).not.toHaveBeenCalled();
+    expect(viewer.requestLatexTools).toHaveBeenCalled();
+    expect(latexTools.compile).toHaveBeenCalledWith(sourcePath);
+  });
+
   it("waits for a removed LaTeX editor to save before compiling", async () => {
     const sourcePath = path.join(directory, "document.tex");
     let finishSave;
