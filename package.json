@@ -22,10 +22,6 @@
   "engines": {
     "lumine": "^1.0.0"
   },
-  "backgroundTips": [
-    "You can search inside a PDF you are reading with {{ 'pdf-view:find' | keystroke }}",
-    "You can reach a PDF's outline and page thumbnails with {{ 'pdf-view:toggle-sidebar' | keystroke }}"
-  ],
   "main": "./lib/main",
   "files": [
     "docs",
@@ -55,6 +51,11 @@
     "navigation.adapter": {
       "versions": {
         "1.0.0": "provideNavigationAdapter"
+      }
+    },
+    "background-tips.provider": {
+      "versions": {
+        "1.0.0": "provideBackgroundTips"
       }
     }
   },
