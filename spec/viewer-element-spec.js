@@ -2,6 +2,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const Viewer = require("../lib/viewer");
+const { createPdf } = require("./helpers/pdf-fixture");
 
 describe("Viewer element", () => {
   let dir, file, viewer, observation;
@@ -9,7 +10,7 @@ describe("Viewer element", () => {
   beforeEach(() => {
     dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pdf-view-element-")));
     file = path.join(dir, "document.pdf");
-    fs.writeFileSync(file, "%PDF-1.7\ncontent\n%%EOF\n");
+    fs.writeFileSync(file, createPdf());
     viewer = new Viewer(file, "");
     observation = viewer.file;
   });
@@ -69,5 +70,38 @@ describe("Viewer element", () => {
     viewer.reconcileFile();
     expect(viewer.getFileState()).toBe(lumine.FileState.UNMODIFIED);
     expect(states).toEqual([lumine.FileState.REMOVED, lumine.FileState.UNMODIFIED]);
+  });
+
+  it("activates a clicked pane while discarding stale document messages", () => {
+    jasmine.attachToDOM(viewer.element);
+    const requestId = viewer.refreshController.currentRequestId - 1;
+    spyOn(viewer, "handleClickMessage");
+    spyOn(viewer, "handleOutlineMessage");
+
+    viewer.messageEvent({ source: viewer.frame.contentWindow, data: { type: "click", requestId } });
+    viewer.messageEvent({
+      source: viewer.frame.contentWindow,
+      data: { type: "pdfjsOutline", requestId, outline: [] },
+    });
+    viewer.messageEvent({ source: window, data: { type: "click", requestId } });
+
+    expect(viewer.handleClickMessage).toHaveBeenCalledTimes(1);
+    expect(viewer.handleOutlineMessage).not.toHaveBeenCalled();
+  });
+
+  it("releases a previous file's build pause when retargeting the viewer", async () => {
+    viewer.pauseAutoRefresh();
+    viewer.reload();
+    expect(viewer.autoRefreshPausedByBuild).toBe(true);
+    const nextFile = path.join(dir, "next.pdf");
+    fs.writeFileSync(nextFile, createPdf());
+    const previous = viewer.file;
+
+    viewer.setFile(nextFile, "");
+    await previous.closed;
+    observation = viewer.file;
+
+    expect(viewer.autoRefreshPausedByBuild).toBe(false);
+    expect(viewer.getPath()).toBe(nextFile);
   });
 });

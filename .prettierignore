@@ -1,4 +1,4 @@
 node_modules
 package-lock.json
-vendors
+vendors/pdfjs-dist
 *.dev

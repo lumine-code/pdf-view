@@ -8,8 +8,8 @@ const runtimeModules = ["lumine"];
 
 module.exports = [
   {
-    // Vendored PDF.js and its custom patch layer ship as-is; the local dev
-    // sandbox is not linted.
+    // Upstream PDF.js is generated code. The embedding adapter lives in lib
+    // and is checked with the rest of the package.
     ignores: ["node_modules/**", "vendors/**", ".dev/**"],
   },
   js.configs.recommended,
@@ -39,6 +39,10 @@ module.exports = [
       "n/no-extraneous-require": ["error", { allowModules: runtimeModules }],
       "n/no-unpublished-require": ["error", { allowModules: runtimeModules }],
     },
+  },
+  {
+    files: ["lib/pdfjs/**"],
+    languageOptions: { sourceType: "script" },
   },
   {
     // Dev tooling (this config, the manual update script) legitimately requires

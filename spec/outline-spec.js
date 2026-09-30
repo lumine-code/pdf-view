@@ -31,6 +31,16 @@ describe("enrichOutline", () => {
     expect(outline[1].text).toBe("Body");
   });
 
+  it("preserves numbers and punctuation inside an outline title", () => {
+    const titles = ["ISO 9001 Requirements", "Chapter 1 Introduction", ". Background"];
+    const outline = enrichOutline(
+      titles.map((title) => ({ title, items: [] })),
+      true,
+    );
+
+    expect(outline.map((item) => item.text)).toEqual(titles);
+  });
+
   it("exposes a 1-based page badge that tracks the resolved destination", () => {
     const outline = enrichOutline(sample(), false);
     expect(outline[1].badge).toBe(5); // pageIndex 4 -> page 5

@@ -8,7 +8,7 @@ Built on Mozilla's PDF.js with theme integration, SyncTeX support, and a documen
 
 - **PDF.js viewer**: renders pdf files in editor panes with Mozilla's PDF.js.
 - **Theme integration**: mirrors the active Lumine UI and syntax theme colors into the viewer.
-- **Auto-reload**: watches the file on disk and refreshes when it changes.
+- **Auto-reload**: watches the file on disk and preserves the page, zoom, rotation, and scroll position when refreshing.
 - **LaTeX and Typst**: compiles `.tex` and `.typ` sources and follows SyncTeX jumps when the matching tools packages are installed.
 - **Build coordination**: pauses auto-refresh during a compile and reloads once the build finishes.
 - **Document outline**: exposes the pdf outline to the navigation panel and tracks the active section while scrolling.

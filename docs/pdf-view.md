@@ -81,9 +81,9 @@ module.exports = {
 
 **Tag your viewers.** A `tag` is written into the URI hash and is how you find the same viewer again after a rebuild. Without one, `getViewerByPath` is the only handle — and it fails as soon as the output path changes.
 
-Prefer `setFile` over closing and reopening. It keeps the pane, the scroll position, and the user's layout; reopening moves focus and loses their place.
+Prefer `setFile` over closing and reopening when the output path changes. It keeps the pane and opens the requested destination in the new file. Refreshing the same file preserves the page, zoom, rotation, and scroll position.
 
-`open` defaults to `activatePane: false`, which is correct for a build tool: the PDF appears without stealing focus from the source. It also searches all panes, so an already-open file is reused rather than duplicated.
+`open` defaults to `activatePane: false`, which is correct for a build tool: the PDF appears without stealing focus from the source. It searches all panes for the same URI, including its destination and tag. To navigate an existing viewer to another destination, use `scrollToDestination` rather than another `open` call.
 
 `observeViewers` replays for existing viewers, so a package activating after a PDF is open still sees it.
 

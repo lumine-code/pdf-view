@@ -1,164 +1,285 @@
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-const Viewer = require("../lib/viewer");
+const RefreshController = require("../lib/refresh-controller");
 
-describe("PDF view auto-refresh", () => {
-  let dir, file, viewer;
+describe("PDF view refresh lifecycle", () => {
+  let owner, controller, disk;
+
+  const loadedRequest = () => {
+    const requestId = controller.beginReload();
+    controller.onReady({ requestId });
+    controller.onDocumentLoaded({ requestId });
+    return requestId;
+  };
+  const settleAndSend = () => {
+    globalThis.advanceClock(200);
+    globalThis.advanceClock(owner.autoTime);
+  };
+  const lastRequest = () => owner.sendMessage.calls.mostRecent().args[0].requestId;
 
   beforeEach(() => {
-    dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pdf-view-refresh-")));
-    file = path.join(dir, "document.pdf");
-    fs.writeFileSync(file, "%PDF-1.7\ninitial\n%%EOF\n");
-
-    viewer = Object.create(Viewer.prototype);
-    viewer.file = { path: file };
-    viewer.fileStableTimeout = null;
-    viewer.refreshTimeout = null;
-    viewer.pendingDiskFingerprint = null;
-    viewer.loadedDiskFingerprint = viewer.getDiskFingerprint();
-    viewer.loadErrorRetries = 0;
-    viewer.lastFailedDiskFingerprint = null;
-    viewer.debug = false;
-    viewer.refresh = jasmine.createSpy("refresh");
+    disk = { size: 100, mtimeMs: 1, ino: 7 };
+    owner = {
+      filePath: "document.pdf",
+      ready: false,
+      autoRefresh: true,
+      autoTime: 1000,
+      autoRefreshPausedByBuild: false,
+      destroyed: false,
+      fileOperationDepth: 0,
+      clearNavigationState: jasmine.createSpy("clearNavigationState"),
+      sendMessage: jasmine.createSpy("sendMessage"),
+    };
+    controller = new RefreshController(owner, {
+      fileSystem: {
+        statSync: () => {
+          if (!disk) throw new Error("File unavailable");
+          return { ...disk };
+        },
+      },
+    });
   });
 
-  afterEach(() => {
-    if (viewer?.fileStableTimeout) {
-      clearTimeout(viewer.fileStableTimeout);
-    }
-    if (viewer?.refreshTimeout) {
-      clearTimeout(viewer.refreshTimeout);
-    }
-    // Retries because Windows keeps a directory non-empty until the last handle on a child
-    // closes, and `force` swallows only ENOENT.
-    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  afterEach(() => controller.destroy());
+
+  it("acknowledges bytes only when PDF.js confirms the document loaded", () => {
+    const requestId = controller.beginReload();
+    controller.onReady({ requestId });
+    expect(controller.loadedDiskFingerprint).toBeNull();
+    expect(controller.sentDiskFingerprint).toEqual(disk);
+    controller.onDocumentLoaded({ requestId });
+    expect(controller.loadedDiskFingerprint).toEqual(disk);
   });
 
-  it("ignores a watcher notification when the opened PDF has not changed", () => {
-    viewer.scheduleStableRefresh();
-
-    expect(viewer.refresh).not.toHaveBeenCalled();
-    expect(viewer.fileStableTimeout).toBeNull();
+  it("ignores watcher notifications for loaded or currently loading bytes", () => {
+    const requestId = controller.beginReload();
+    controller.scheduleStableRefresh();
+    expect(controller.fileStableTimeout).toBeNull();
+    controller.onDocumentLoaded({ requestId });
+    controller.scheduleStableRefresh();
+    expect(controller.fileStableTimeout).toBeNull();
+    expect(owner.sendMessage).not.toHaveBeenCalled();
   });
 
-  it("ignores a metadata-only change, like the read that loading the PDF performs", () => {
-    const mtime = new Date(2026, 0, 1, 12, 0, 0);
-    fs.utimesSync(file, mtime, mtime);
-    viewer.loadedDiskFingerprint = viewer.getDiskFingerprint();
-
-    // Loading the PDF reads the file, which updates its access time — and on
-    // Windows the ChangeTime (ctimeMs) with it — without touching the contents.
-    fs.utimesSync(file, new Date(2026, 0, 1, 13, 0, 0), mtime);
-    viewer.scheduleStableRefresh();
-
-    expect(viewer.refresh).not.toHaveBeenCalled();
-    expect(viewer.fileStableTimeout).toBeNull();
-  });
-
-  it("refreshes once after a changed PDF remains stable", () => {
-    fs.writeFileSync(file, "%PDF-1.7\nupdated document contents\n%%EOF\n");
-
-    viewer.scheduleStableRefresh();
-    globalThis.advanceClock(199);
-    expect(viewer.refresh).not.toHaveBeenCalled();
-
-    globalThis.advanceClock(1);
-    expect(viewer.refresh).toHaveBeenCalledTimes(1);
-    expect(
-      viewer.diskFingerprintsEqual(viewer.loadedDiskFingerprint, viewer.getDiskFingerprint()),
-    ).toBe(true);
-  });
-
-  it("restarts the quiet period when another watcher event arrives", () => {
-    fs.writeFileSync(file, "%PDF-1.7\nfirst update\n%%EOF\n");
-    viewer.scheduleStableRefresh();
+  it("debounces after the last change without prematurely acknowledging bytes", () => {
+    loadedRequest();
+    disk = { ...disk, size: 200, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
     globalThis.advanceClock(150);
-
-    fs.writeFileSync(file, "%PDF-1.7\nsecond, longer update\n%%EOF\n");
-    viewer.scheduleStableRefresh();
+    disk = { ...disk, size: 300, mtimeMs: 3 };
+    controller.scheduleStableRefresh();
     globalThis.advanceClock(199);
-    expect(viewer.refresh).not.toHaveBeenCalled();
-
+    expect(owner.sendMessage).not.toHaveBeenCalled();
     globalThis.advanceClock(1);
-    expect(viewer.refresh).toHaveBeenCalledTimes(1);
-  });
-
-  it("recovers from a failed document load without a watcher event", () => {
-    // The file on disk is complete and unchanged since reload() fingerprinted
-    // it -- the load failed for another reason (a transient lock). No watcher
-    // event will ever arrive, so the loadError report alone must get back to a
-    // refresh once the stability loop finds the file stable and valid.
-    viewer.handleLoadErrorMessage();
-    expect(viewer.loadedDiskFingerprint).toBeNull();
-
-    globalThis.advanceClock(199);
-    expect(viewer.refresh).not.toHaveBeenCalled();
-    globalThis.advanceClock(1);
-    expect(viewer.refresh).toHaveBeenCalledTimes(1);
-  });
-
-  it("stops retrying after the same file state fails three times", () => {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      viewer.handleLoadErrorMessage();
-      globalThis.advanceClock(200);
-    }
-    expect(viewer.refresh).toHaveBeenCalledTimes(3);
-
-    // The fourth failure of identical bytes is a broken file, not a race.
-    viewer.handleLoadErrorMessage();
-    globalThis.advanceClock(200);
-    expect(viewer.refresh).toHaveBeenCalledTimes(3);
-    expect(viewer.fileStableTimeout).toBeNull();
-  });
-
-  it("grants a changed file a fresh retry budget", () => {
-    for (let attempt = 1; attempt <= 4; attempt++) {
-      viewer.handleLoadErrorMessage();
-      globalThis.advanceClock(200);
-    }
-    expect(viewer.refresh).toHaveBeenCalledTimes(3);
-
-    // The build wrote new bytes: the old failure's budget no longer applies.
-    fs.writeFileSync(file, "%PDF-1.7\nrewritten by the build\n%%EOF\n");
-    viewer.handleLoadErrorMessage();
-    globalThis.advanceClock(200);
-    expect(viewer.refresh).toHaveBeenCalledTimes(4);
-  });
-
-  it("waits for a mid-write file to settle before the recovery refresh", () => {
-    // The failed fetch read a truncated file and the build is still writing:
-    // the loop must hold the refresh until the trailer is on disk.
-    fs.writeFileSync(file, "%PDF-1.7\ntruncated middle of a write");
-    viewer.handleLoadErrorMessage();
-    globalThis.advanceClock(200);
-    expect(viewer.refresh).not.toHaveBeenCalled();
-
-    fs.writeFileSync(file, "%PDF-1.7\nthe write completed\n%%EOF\n");
-    // The first check sees the fingerprint move and re-arms; only the second
-    // finds it stable. advanceClock fires no timer armed during the advance,
-    // so each check needs its own step.
-    globalThis.advanceClock(200);
-    expect(viewer.refresh).not.toHaveBeenCalled();
-    globalThis.advanceClock(200);
-    expect(viewer.refresh).toHaveBeenCalledTimes(1);
-  });
-
-  it("debounces delayed refreshes after the last detected change", () => {
-    viewer.ready = true;
-    viewer.autoTime = 1000;
-    viewer.clearNavigationState = jasmine.createSpy("clearNavigationState");
-    viewer.sendMessage = jasmine.createSpy("sendMessage");
-    viewer.refresh = Viewer.prototype.refresh;
-
-    viewer.refresh();
-    globalThis.advanceClock(750);
-    viewer.refresh();
     globalThis.advanceClock(999);
-    expect(viewer.sendMessage).not.toHaveBeenCalled();
-
+    expect(owner.sendMessage).not.toHaveBeenCalled();
     globalThis.advanceClock(1);
-    expect(viewer.sendMessage).toHaveBeenCalledTimes(1);
-    expect(viewer.sendMessage).toHaveBeenCalledWith({ type: "refresh", filePath: file });
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+    expect(owner.sendMessage).toHaveBeenCalledWith({
+      type: "refresh",
+      filePath: "document.pdf",
+      requestId: lastRequest(),
+    });
+    expect(controller.loadedDiskFingerprint.mtimeMs).toBe(1);
+    controller.onDocumentLoaded({ requestId: lastRequest() });
+    expect(controller.loadedDiskFingerprint).toEqual(disk);
+  });
+
+  it("retains a stable file change until the iframe becomes ready", () => {
+    const requestId = controller.beginReload();
+    disk = { ...disk, size: 200, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
+    settleAndSend();
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    expect(controller.pendingRefresh).toBe(true);
+    expect(controller.loadedDiskFingerprint).toBeNull();
+    controller.onReady({ requestId });
+    globalThis.advanceClock(owner.autoTime);
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+    expect(controller.sentDiskFingerprint).toEqual(disk);
+  });
+
+  it("checks stability again when bytes change during the configured delay", () => {
+    loadedRequest();
+    disk = { ...disk, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
+    globalThis.advanceClock(200);
+    disk = { ...disk, mtimeMs: 3 };
+    globalThis.advanceClock(owner.autoTime);
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    settleAndSend();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+    expect(controller.sentDiskFingerprint.mtimeMs).toBe(3);
+  });
+
+  it("cancels an existing delayed refresh while the source builds", () => {
+    loadedRequest();
+    disk = { ...disk, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
+    globalThis.advanceClock(200);
+    controller.pauseAutoRefresh();
+    globalThis.advanceClock(5000);
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    expect(owner.autoRefresh).toBe(true);
+    expect(controller.refreshTimeout).toBeNull();
+    disk = { ...disk, size: 300, mtimeMs: 3 };
+    controller.resumeAutoRefresh();
+    settleAndSend();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+    expect(controller.sentDiskFingerprint).toEqual(disk);
+  });
+
+  it("cancels a pending stability check during a build", () => {
+    loadedRequest();
+    disk = { ...disk, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
+    controller.pauseAutoRefresh();
+    globalThis.advanceClock(5000);
+    expect(controller.fileStableTimeout).toBeNull();
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    controller.resumeAutoRefresh();
+    settleAndSend();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows a queued manual refresh with automatic refresh disabled", () => {
+    const requestId = controller.beginReload();
+    owner.autoRefresh = false;
+    controller.refreshNow();
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    controller.onReady({ requestId });
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("defers a manual refresh until a build finishes", () => {
+    loadedRequest();
+    owner.autoRefresh = false;
+    controller.pauseAutoRefresh();
+    controller.refreshNow();
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    controller.resumeAutoRefresh();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("defers manual refresh during a file operation and flushes on reconciliation", () => {
+    loadedRequest();
+    owner.fileOperationDepth++;
+    controller.cancelTimers();
+    controller.refreshNow();
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    owner.fileOperationDepth--;
+    controller.scheduleStableRefresh();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels automatic work when its preference is disabled", () => {
+    loadedRequest();
+    disk = { ...disk, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
+    globalThis.advanceClock(200);
+    owner.autoRefresh = false;
+    controller.preferenceChanged();
+    globalThis.advanceClock(owner.autoTime);
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    expect(controller.pendingRefresh).toBe(false);
+    owner.autoRefresh = true;
+    controller.preferenceChanged();
+    settleAndSend();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("limits parser recovery to three attempts for unchanged bytes", () => {
+    let requestId = controller.beginReload();
+    controller.onReady({ requestId });
+    owner.autoRefresh = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      expect(controller.onLoadError({ requestId })).toBe(true);
+      settleAndSend();
+      requestId = lastRequest();
+    }
+    expect(owner.sendMessage).toHaveBeenCalledTimes(3);
+    controller.onLoadError({ requestId });
+    controller.scheduleStableRefresh();
+    globalThis.advanceClock(10000);
+    expect(owner.sendMessage).toHaveBeenCalledTimes(3);
+    expect(controller.fileStableTimeout).toBeNull();
+    expect(controller.refreshTimeout).toBeNull();
+    expect(controller.sentDiskFingerprint).toBeNull();
+  });
+
+  it("gives changed bytes a new recovery budget after an earlier file failed", () => {
+    let requestId = controller.beginReload();
+    controller.onReady({ requestId });
+    owner.autoRefresh = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      controller.onLoadError({ requestId });
+      settleAndSend();
+      requestId = lastRequest();
+    }
+    controller.onLoadError({ requestId });
+    disk = { ...disk, size: 300, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
+    settleAndSend();
+    requestId = lastRequest();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(4);
+    controller.onLoadError({ requestId });
+    expect(controller.loadErrorRetries).toBe(1);
+  });
+
+  it("asks PDF.js to parse stable bytes without a header or EOF heuristic", () => {
+    loadedRequest();
+    disk = { ...disk, size: 0, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
+    settleAndSend();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+    expect(controller.sentDiskFingerprint.size).toBe(0);
+  });
+
+  it("waits for the watcher when a file disappears during recovery", () => {
+    const requestId = controller.beginReload();
+    controller.onReady({ requestId });
+    owner.autoRefresh = false;
+    disk = null;
+    controller.onLoadError({ requestId });
+    globalThis.advanceClock(10000);
+    expect(controller.fileStableTimeout).toBeNull();
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    disk = { size: 300, mtimeMs: 2, ino: 8 };
+    controller.scheduleStableRefresh();
+    settleAndSend();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects stale acknowledgements, errors and readiness after a newer request", () => {
+    const previous = loadedRequest();
+    disk = { ...disk, mtimeMs: 2 };
+    controller.refreshNow();
+    const current = lastRequest();
+    expect(controller.onDocumentLoaded({ requestId: previous })).toBe(false);
+    expect(controller.onLoadError({ requestId: previous })).toBe(false);
+    expect(controller.onReady({ requestId: previous })).toBe(false);
+    expect(controller.loadedDiskFingerprint.mtimeMs).toBe(1);
+    expect(controller.onDocumentLoaded({ requestId: current })).toBe(true);
+    expect(controller.loadedDiskFingerprint.mtimeMs).toBe(2);
+  });
+
+  it("detects changes made while the previous request was loading", () => {
+    const requestId = controller.beginReload();
+    controller.onReady({ requestId });
+    disk = { ...disk, mtimeMs: 2 };
+    controller.onDocumentLoaded({ requestId });
+    settleAndSend();
+    expect(owner.sendMessage).toHaveBeenCalledTimes(1);
+    expect(controller.sentDiskFingerprint.mtimeMs).toBe(2);
+  });
+
+  it("destroys pending work and ignores late completion callbacks", () => {
+    const requestId = loadedRequest();
+    disk = { ...disk, mtimeMs: 2 };
+    controller.scheduleStableRefresh();
+    controller.destroy();
+    globalThis.advanceClock(10000);
+    expect(owner.sendMessage).not.toHaveBeenCalled();
+    expect(controller.onDocumentLoaded({ requestId })).toBe(false);
+    expect(controller.onLoadError({ requestId })).toBe(false);
+    expect(controller.pendingRefresh).toBe(false);
   });
 });
