@@ -28,6 +28,7 @@
     "keymaps",
     "lib",
     "menus",
+    "scripts",
     "spec",
     "styles",
     "vendors"
