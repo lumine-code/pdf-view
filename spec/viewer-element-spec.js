@@ -64,12 +64,12 @@ describe("Viewer element", () => {
 
     fs.unlinkSync(file);
     viewer.reconcileFile();
-    expect(viewer.getFileState()).toBe(lumine.FileState.REMOVED);
+    expect(viewer.getFileState()).toBe("removed");
 
     fs.writeFileSync(file, "%PDF-1.7\nrecreated\n%%EOF\n");
     viewer.reconcileFile();
-    expect(viewer.getFileState()).toBe(lumine.FileState.UNMODIFIED);
-    expect(states).toEqual([lumine.FileState.REMOVED, lumine.FileState.UNMODIFIED]);
+    expect(viewer.getFileState()).toBe("unmodified");
+    expect(states).toEqual(["removed", "unmodified"]);
   });
 
   it("activates a clicked pane while discarding stale document messages", () => {

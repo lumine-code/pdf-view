@@ -25,7 +25,7 @@ describe("PDF source compilation", () => {
     let finishSave;
     const editor = {
       getPath: () => sourcePath,
-      getFileState: () => lumine.FileState.CONFLICTED,
+      getFileState: () => "conflicted",
       save: jasmine
         .createSpy("save")
         .and.callFake(() => new Promise((resolve) => (finishSave = resolve))),
@@ -94,7 +94,7 @@ describe("PDF source compilation", () => {
     let finishSave;
     const editor = {
       getPath: () => sourcePath,
-      getFileState: () => lumine.FileState.REMOVED,
+      getFileState: () => "removed",
       save: jasmine.createSpy("save").and.callFake(
         () =>
           new Promise((resolve) => {

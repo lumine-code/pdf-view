@@ -2,7 +2,6 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const Viewer = require("../lib/viewer");
-const { FileState } = require("lumine");
 
 describe("PDF file observation", () => {
   let directory, filePath, viewer;
@@ -22,10 +21,10 @@ describe("PDF file observation", () => {
   });
   it("keeps observing its original filename after an external rename", async () => {
     fs.renameSync(filePath, path.join(directory, "external.pdf"));
-    await globalThis.conditionPromise(() => viewer.getFileState() === FileState.REMOVED);
+    await globalThis.conditionPromise(() => viewer.getFileState() === "removed");
     expect(viewer.getPath()).toBe(filePath);
     fs.writeFileSync(filePath, "%PDF-1.7\nrecreated\n%%EOF\n");
-    await globalThis.conditionPromise(() => viewer.getFileState() === FileState.UNMODIFIED);
+    await globalThis.conditionPromise(() => viewer.getFileState() === "unmodified");
   });
   it("retargets an explicit move while preserving its navigation hash", async () => {
     const target = path.join(directory, "moved.pdf");
@@ -38,6 +37,6 @@ describe("PDF file observation", () => {
     await previous.closed;
     expect(viewer.getPath()).toBe(target);
     expect(viewer.hash).toBe("#page=3");
-    expect(viewer.getFileState()).toBe(FileState.UNMODIFIED);
+    expect(viewer.getFileState()).toBe("unmodified");
   });
 });
