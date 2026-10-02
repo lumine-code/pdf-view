@@ -7,12 +7,13 @@ const { createPdf } = require("./helpers/pdf-fixture");
 describe("Viewer element", () => {
   let dir, file, viewer, observation;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pdf-view-element-")));
     file = path.join(dir, "document.pdf");
     fs.writeFileSync(file, createPdf());
     viewer = new Viewer(file, "");
     observation = viewer.file;
+    await observation.ready;
   });
 
   afterEach(async () => {
@@ -100,6 +101,7 @@ describe("Viewer element", () => {
     viewer.setFile(nextFile, "");
     await previous.closed;
     observation = viewer.file;
+    await observation.ready;
 
     expect(viewer.autoRefreshPausedByBuild).toBe(false);
     expect(viewer.getPath()).toBe(nextFile);
