@@ -70,6 +70,10 @@ The viewer adapts its colors to the active Lumine theme. When the theme changes,
 
 The viewer exposes its document outline through the `navigation.adapter` service, so a navigation panel can search the outline tree instead of the built-in PDF.js outline. Scroll position is tracked and the active section is highlighted in the panel.
 
+## Pending previews
+
+Opening another PDF in a pending tab reuses an initialized viewer and its iframe. The new PDF starts at its URI destination with the configured default zoom, and the viewer resets navigation and build state. Encrypted PDFs use a new viewer so PDF.js can show its password dialog. A failed or cancelled replacement leaves the previous PDF open.
+
 ## URI options
 
 The viewer accepts additional options when opening a PDF: open on a specific page, set the initial zoom level, jump to a named destination, or choose a sidebar state. For more information, see [pdf.js viewer options](https://github.com/mozilla/pdf.js/wiki/Viewer-options).

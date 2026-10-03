@@ -174,4 +174,194 @@ describe("PDF.js integration", () => {
     expect(app.pdfDocument.numPages).toBe(2);
     expect(viewer.refreshController.loadedDiskFingerprint).not.toBeNull();
   });
+
+  it("reuses the iframe and runtime while resetting document state and publishing its URI", async () => {
+    const app = await open({ pages: 3 }, "previous.pdf", "#page=3&old-tag");
+    const previous = app.pdfDocument;
+    const frame = viewer.frame;
+    const src = frame.src;
+    const contentWindow = frame.contentWindow;
+    const nextPath = path.join(directory, "chapter #2 + 50%.pdf");
+    fs.writeFileSync(
+      nextPath,
+      createPdf({ pages: 2, outline: [{ title: "Next section", page: 1, dest: "A&B" }] }),
+    );
+    app.pdfViewer.currentScaleValue = "2.5";
+    app.pdfViewer.pagesRotation = 90;
+    viewer.pauseAutoRefresh();
+    viewer.setColorInverted(true);
+    const paths = [];
+    const uris = [];
+    viewer.onDidChangePath((value) => paths.push(value));
+    viewer.onDidChangeURI((value) => uris.push(value));
+    const oldURI = viewer.getURI();
+    const hash = "#nameddest=A%26B&next-tag";
+
+    expect(await viewer.replaceDocument(nextPath, hash)).toBe(true);
+    await waitForDocument(previous);
+
+    expect(viewer.frame).toBe(frame);
+    expect(viewer.frame.src).toBe(src);
+    expect(viewer.frame.contentWindow).toBe(contentWindow);
+    expect(application()).toBe(app);
+    expect(viewer.getPath()).toBe(nextPath);
+    expect(viewer.getURI()).toBe(`${nextPath}${hash}`);
+    expect(viewer.serialize().hash).toBe(hash);
+    expect(viewer.autoRefreshPausedByBuild).toBe(false);
+    expect(paths).toEqual([nextPath]);
+    expect(uris).toEqual([{ oldURI, newURI: `${nextPath}${hash}` }]);
+    expect(app.pdfViewer.pagesRotation).toBe(0);
+    expect(app.pdfViewer.currentScaleValue).toBe("page-width");
+    expect(app.pdfViewer.currentPageNumber).toBe(2);
+    expect(viewer.outline[0].title).toBe("Next section");
+    expect(
+      viewer.frame.contentDocument.documentElement.classList.contains("pdf-view-colors-inverted"),
+    ).toBe(true);
+  });
+
+  it("keeps the loaded PDF and metadata after an invalid replacement", async () => {
+    const app = await open({ pages: 2 }, "previous.pdf", "#page=2&old-tag");
+    const previous = app.pdfDocument;
+    const oldURI = viewer.getURI();
+    const nextPath = path.join(directory, "invalid.pdf");
+    fs.writeFileSync(nextPath, "This is not a PDF");
+
+    const error = await viewer.replaceDocument(nextPath, "#new-tag").catch((failure) => failure);
+
+    expect(error instanceof Error).toBe(true);
+    expect(viewer.getURI()).toBe(oldURI);
+    expect(app.pdfDocument).toBe(previous);
+    expect(app.pdfViewer.currentPageNumber).toBe(2);
+    expect(viewer.documentReplacement.pending).toBe(false);
+  });
+
+  it("cancels preparation without replacing the loaded PDF", async () => {
+    const app = await open({ pages: 2 }, "previous.pdf", "#page=2");
+    const previous = app.pdfDocument;
+    const oldURI = viewer.getURI();
+    const nextPath = path.join(directory, "next.pdf");
+    fs.writeFileSync(nextPath, createPdf({ pages: 3 }));
+    const controller = new AbortController();
+    const result = viewer.replaceDocument(nextPath, "", { signal: controller.signal });
+    const error = result.catch((failure) => failure);
+    controller.abort();
+
+    expect((await error).name).toBe("AbortError");
+    expect(viewer.getURI()).toBe(oldURI);
+    expect(app.pdfDocument).toBe(previous);
+    expect(viewer.documentReplacement.pending).toBe(false);
+  });
+
+  it("keeps the same iframe when a newer document replaces an aborted request", async () => {
+    const app = await open({}, "first.pdf", "#first-tag");
+    const frame = viewer.frame;
+    const contentWindow = frame.contentWindow;
+    const src = frame.src;
+    const secondPath = path.join(directory, "second.pdf");
+    const thirdPath = path.join(directory, "third.pdf");
+    fs.writeFileSync(secondPath, createPdf({ pages: 2 }));
+    fs.writeFileSync(thirdPath, createPdf({ pages: 3 }));
+    const controller = new AbortController();
+    const preparing = viewer.replaceDocument(secondPath, "#second-tag", {
+      signal: controller.signal,
+    });
+    const cancelled = preparing.catch((error) => error);
+    controller.abort();
+    const newest = viewer.replaceDocument(thirdPath, "#page=3&third-tag");
+
+    expect((await cancelled).name).toBe("AbortError");
+    expect(await newest).toBe(true);
+    expect(viewer.frame).toBe(frame);
+    expect(viewer.frame.contentWindow).toBe(contentWindow);
+    expect(viewer.frame.src).toBe(src);
+    expect(application()).toBe(app);
+    expect(viewer.getURI()).toBe(`${thirdPath}#page=3&third-tag`);
+    expect(app.pdfDocument.numPages).toBe(3);
+    expect(app.pdfViewer.currentPageNumber).toBe(3);
+  });
+
+  it("preserves the loaded document and watcher when staging the next watcher fails", async () => {
+    const app = await open({}, "first.pdf", "#first-tag");
+    const previousDocument = app.pdfDocument;
+    const previousObservation = viewer.file;
+    const uri = viewer.getURI();
+    const src = viewer.frame.src;
+    const nextPath = path.join(directory, "next.pdf");
+    fs.writeFileSync(nextPath, createPdf({ pages: 2 }));
+    spyOn(lumine.fileWatchClient, "watchFile").and.throwError("Cannot arm watcher");
+
+    const error = await viewer.replaceDocument(nextPath, "#next-tag").catch((failure) => failure);
+
+    expect(error.message).toBe("Cannot arm watcher");
+    expect(viewer.getURI()).toBe(uri);
+    expect(viewer.file).toBe(previousObservation);
+    expect(viewer.frame.src).toBe(src);
+    expect(app.pdfDocument).toBe(previousDocument);
+    expect(viewer.documentReplacement.pending).toBe(false);
+  });
+
+  it("restores the previous PDF when cancelled after the replacement initializes", async () => {
+    const app = await open({ pages: 3 }, "first.pdf", "#page=3&first-tag");
+    const previousDocument = app.pdfDocument;
+    const previousObservation = viewer.file;
+    const oldURI = viewer.getURI();
+    const frame = viewer.frame;
+    const nextPath = path.join(directory, "next.pdf");
+    fs.writeFileSync(nextPath, createPdf({ pages: 2 }));
+    const controller = new AbortController();
+    const replacement = viewer.documentReplacement;
+    const handle = replacement.handleMessage.bind(replacement);
+    spyOn(replacement, "handleMessage").and.callFake((data) => {
+      if (data?.type === "documentCommitted") controller.abort();
+      return handle(data);
+    });
+
+    const error = await viewer
+      .replaceDocument(nextPath, "#page=2", { signal: controller.signal })
+      .catch((failure) => failure);
+
+    expect(error.name).toBe("AbortError");
+    expect(viewer.getURI()).toBe(oldURI);
+    expect(viewer.file).toBe(previousObservation);
+    expect(viewer.frame).toBe(frame);
+    expect(app.pdfDocument).toBe(previousDocument);
+    expect(app.pdfViewer.currentPageNumber).toBe(3);
+    expect(replacement.pending).toBe(false);
+  });
+
+  it("reuses the pending workspace viewer when a newer open supersedes its replacement", async () => {
+    const workspaceElement = lumine.views.getView(lumine.workspace);
+    workspaceElement.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
+    jasmine.attachToDOM(workspaceElement);
+    const firstPath = path.join(directory, "first.pdf");
+    const secondPath = path.join(directory, "second.pdf");
+    const thirdPath = path.join(directory, "third.pdf");
+    fs.writeFileSync(firstPath, createPdf());
+    fs.writeFileSync(secondPath, createPdf({ pages: 2 }));
+    fs.writeFileSync(thirdPath, createPdf({ pages: 3 }));
+    viewer = await lumine.workspace.open(firstPath, { pending: true });
+    await viewer.whenReady();
+    const app = await waitForDocument();
+    const frame = viewer.frame;
+    const contentWindow = frame.contentWindow;
+    const src = frame.src;
+    const pane = lumine.workspace.paneForItem(viewer);
+    const createViewer = spyOn(main, "createViewer").and.callThrough();
+
+    const superseded = lumine.workspace.open(secondPath, { pending: true });
+    await globalThis.conditionPromise(() => viewer.documentReplacement.pending);
+    const latest = lumine.workspace.open(`${thirdPath}#page=3`, { pending: true });
+
+    expect(await superseded).toBeUndefined();
+    expect(await latest).toBe(viewer);
+    expect(createViewer).not.toHaveBeenCalled();
+    expect(viewer.getURI()).toBe(`${thirdPath}#page=3`);
+    expect(app.pdfViewer.currentPageNumber).toBe(3);
+    expect(app.pdfDocument.numPages).toBe(3);
+    expect(pane.getPendingItem()).toBe(viewer);
+    expect(viewer.frame).toBe(frame);
+    expect(viewer.frame.contentWindow).toBe(contentWindow);
+    expect(viewer.frame.src).toBe(src);
+    expect(application()).toBe(app);
+  });
 });

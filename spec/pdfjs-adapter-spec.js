@@ -104,6 +104,36 @@ function createAdapter() {
       scrollPageIntoView() {},
     },
     open: async () => {},
+    close: async () => {
+      await app.pdfLoadingTask?.destroy();
+      app.pdfLoadingTask = null;
+      app.pdfDocument = null;
+    },
+    load: (pdfDocument) => {
+      app.pdfDocument = pdfDocument;
+      eventBus.dispatch("pagesinit");
+      eventBus.dispatch("documentinit");
+    },
+    setTitleUsingUrl: (url) => {
+      app.url = url;
+    },
+  };
+  const tasks = [];
+  const pdfjsLib = {
+    GlobalWorkerOptions: {},
+    getDocument: ({ url }) => {
+      const task = {
+        url,
+        promise: Promise.resolve({
+          numPages: 1,
+          getPage: async () => ({}),
+          getOutline: async () => null,
+        }),
+        destroy: jasmine.createSpy("destroyTask").and.resolveTo(),
+      };
+      tasks.push(task);
+      return task;
+    },
   };
   const context = vm.createContext({
     console: diagnosticConsole,
@@ -120,7 +150,11 @@ function createAdapter() {
       innerHeight: 600,
       addEventListener: (name, callback) => windowListeners.set(name, callback),
       PDFViewerApplication: app,
-      PDFViewerApplicationOptions: { setAll: (values) => Object.assign(options, values) },
+      pdfjsLib,
+      PDFViewerApplicationOptions: {
+        setAll: (values) => Object.assign(options, values),
+        getAll: () => ({ ...options }),
+      },
     },
     document: { documentElement: { style: { setProperty() {} }, classList: { toggle() {} } } },
     parent: {
@@ -149,6 +183,9 @@ function createAdapter() {
     listeners,
     timers,
     diagnostics,
+    tasks,
+    pdfjsLib,
+    send: (data) => windowListeners.get("message")({ source: context.parent, data }),
     diagnosticConsole,
     initialize: async () => {
       hostListeners.get("webviewerloaded")({ detail: { source: context.window } });
@@ -230,5 +267,124 @@ describe("PDF.js iframe adapter", () => {
     adapter.context.scrollToPosition({ page: -1, x: 20, y: 30 });
     expect(adapter.app.pdfViewer.scrollPageIntoView).not.toHaveBeenCalled();
     expect(adapter.listeners.has("pagesloaded")).toBe(false);
+  });
+
+  it("prepares a replacement without closing the document and resets its view on commit", async () => {
+    await adapter.initialize();
+    const previous = adapter.app.pdfDocument;
+    const oldTask = { destroy: jasmine.createSpy("destroyPrevious").and.resolveTo() };
+    adapter.app.pdfLoadingTask = oldTask;
+    adapter.app.url = "previous.pdf";
+    await adapter.context.prepareDocument({
+      filePath: "next.pdf",
+      hash: "#page=2&next-tag",
+      requestId: 8,
+    });
+    expect(adapter.app.pdfDocument).toBe(previous);
+    expect(oldTask.destroy).not.toHaveBeenCalled();
+    expect(adapter.messages.at(-1)).toEqual({ type: "documentPrepared", requestId: 8 });
+
+    await adapter.send({ type: "commitDocument", requestId: 8 });
+
+    expect(adapter.app.pdfDocument).not.toBe(previous);
+    expect(adapter.app.initialBookmark).toBe("page=2&next-tag");
+    expect(adapter.app.initialRotation).toBe(0);
+    expect(adapter.options.defaultZoomValue).toBe("auto");
+    expect(adapter.options.scrollModeOnLoad).toBe(0);
+    expect(adapter.options.spreadModeOnLoad).toBe(0);
+    expect(adapter.messages).toContain({ type: "documentCommitted", requestId: 8 });
+    expect(oldTask.destroy).not.toHaveBeenCalled();
+    adapter.context.acceptDocument({ requestId: 8 });
+    await flushTasks();
+    expect(oldTask.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels preparation and never publishes its late outline or readiness", async () => {
+    await adapter.initialize();
+    const previous = adapter.app.pdfDocument;
+    const loading = deferred();
+    const task = {
+      promise: loading.promise,
+      destroy: jasmine.createSpy("destroy").and.resolveTo(),
+    };
+    adapter.pdfjsLib.getDocument = () => task;
+    const preparing = adapter.context.prepareDocument({ filePath: "cancelled.pdf", requestId: 8 });
+    await adapter.context.cancelDocument({ requestId: 8 });
+    loading.resolve({
+      getPage: async () => ({}),
+      getOutline: async () => [{ title: "Cancelled" }],
+    });
+    await preparing;
+    expect(adapter.app.pdfDocument).toBe(previous);
+    expect(task.destroy).toHaveBeenCalledTimes(1);
+    expect(adapter.messages.at(-1)).toEqual({
+      type: "documentCancelled",
+      requestId: 8,
+      message: undefined,
+    });
+    expect(adapter.messages.some((message) => message.type === "documentPrepared")).toBe(false);
+  });
+
+  it("restores the previous document and view when a committed replacement is cancelled", async () => {
+    await adapter.initialize();
+    const previous = adapter.app.pdfDocument;
+    const oldTask = { destroy: jasmine.createSpy("destroyPrevious").and.resolveTo() };
+    adapter.app.pdfLoadingTask = oldTask;
+    adapter.app.url = "previous.pdf";
+    await adapter.context.prepareDocument({ filePath: "next.pdf", hash: "#page=2", requestId: 8 });
+    await adapter.send({ type: "commitDocument", requestId: 8 });
+    await adapter.context.cancelDocument({ requestId: 8 });
+    expect(adapter.app.pdfDocument).toBe(previous);
+    expect(adapter.app.pdfLoadingTask).toBe(oldTask);
+    expect(adapter.app.initialBookmark).toBe("page=1&zoom=250,12,350");
+    expect(adapter.app.initialRotation).toBe(90);
+    expect(oldTask.destroy).not.toHaveBeenCalled();
+    expect(adapter.tasks[0].destroy).toHaveBeenCalledTimes(1);
+    expect(adapter.messages).toContain({
+      type: "documentCancelled",
+      requestId: 8,
+      message: undefined,
+    });
+  });
+
+  it("reports preparation failure and keeps the old document", async () => {
+    await adapter.initialize();
+    const previous = adapter.app.pdfDocument;
+    const task = {
+      promise: Promise.reject(new Error("Invalid PDF")),
+      destroy: jasmine.createSpy("destroy").and.resolveTo(),
+    };
+    adapter.pdfjsLib.getDocument = () => task;
+    await adapter.context.prepareDocument({ filePath: "invalid.pdf", requestId: 8 });
+    expect(adapter.app.pdfDocument).toBe(previous);
+    expect(adapter.messages.at(-1)).toEqual({
+      type: "documentReplacementError",
+      requestId: 8,
+      message: "Invalid PDF",
+    });
+    expect(task.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("declines password-protected documents before replacing the current PDF", async () => {
+    await adapter.initialize();
+    const previous = adapter.app.pdfDocument;
+    const loading = deferred();
+    const task = {
+      promise: loading.promise,
+      destroy: jasmine.createSpy("destroy").and.resolveTo(),
+    };
+    adapter.pdfjsLib.getDocument = () => task;
+    const preparing = adapter.context.prepareDocument({ filePath: "encrypted.pdf", requestId: 8 });
+    task.onPassword();
+    await flushTasks();
+    expect(adapter.app.pdfDocument).toBe(previous);
+    expect(task.destroy).toHaveBeenCalledTimes(1);
+    expect(adapter.messages).toContain({
+      type: "documentReplacementDeclined",
+      requestId: 8,
+      message: undefined,
+    });
+    loading.resolve({ getPage: async () => ({}) });
+    await preparing;
   });
 });

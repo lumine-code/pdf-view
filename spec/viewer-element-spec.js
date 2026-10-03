@@ -106,4 +106,19 @@ describe("Viewer element", () => {
     expect(viewer.autoRefreshPausedByBuild).toBe(false);
     expect(viewer.getPath()).toBe(nextFile);
   });
+
+  it("publishes URI changes for a filesystem relocation", async () => {
+    const nextFile = path.join(dir, "relocated.pdf");
+    fs.renameSync(file, nextFile);
+    const previous = viewer.file;
+    const uris = [];
+    viewer.onDidChangeURI((value) => uris.push(value));
+
+    viewer.setPath(nextFile);
+    observation = viewer.file;
+    await previous.closed;
+    await observation.ready;
+
+    expect(uris).toEqual([{ oldURI: file, newURI: nextFile }]);
+  });
 });
