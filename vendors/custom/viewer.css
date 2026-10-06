@@ -18,7 +18,7 @@ button,
 input,
 select,
 textarea {
-  font-family: var(--font-family);
+  font-family: var(--ui-font-family);
 }
 
 .textLayer.selectionRendering ::-moz-selection {

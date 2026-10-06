@@ -42,6 +42,9 @@ function createAdapter() {
   const timers = new Map();
   let nextTimer = 0;
   const diagnostics = [];
+  const hostThemeVariables = new Map([["--text-color", "rgb(10, 20, 30)"]]);
+  const copiedThemeVariables = new Map();
+  const themeObservers = new Set();
   const diagnosticConsole = { error: (...values) => diagnostics.push(values) };
   const eventBus = {
     on(name, callback) {
@@ -156,10 +159,23 @@ function createAdapter() {
         getAll: () => ({ ...options }),
       },
     },
-    document: { documentElement: { style: { setProperty() {} }, classList: { toggle() {} } } },
+    document: {
+      documentElement: {
+        style: { setProperty: (name, value) => copiedThemeVariables.set(name, value) },
+        classList: { toggle() {} },
+      },
+    },
     parent: {
       postMessage: (message) => messages.push(message),
-      getComputedStyle: () => ({ getPropertyValue: () => "" }),
+      getComputedStyle: () => ({ getPropertyValue: (name) => hostThemeVariables.get(name) || "" }),
+      lumine: {
+        themes: {
+          onDidChangeVariables(callback) {
+            themeObservers.add(callback);
+            return { dispose: () => themeObservers.delete(callback) };
+          },
+        },
+      },
       document: {
         documentElement: {},
         body: { appendChild() {} },
@@ -183,6 +199,12 @@ function createAdapter() {
     listeners,
     timers,
     diagnostics,
+    hostThemeVariables,
+    copiedThemeVariables,
+    themeObservers,
+    variablesChanged: () => {
+      for (const callback of themeObservers) callback();
+    },
     tasks,
     pdfjsLib,
     send: (data) => windowListeners.get("message")({ source: context.parent, data }),
@@ -202,6 +224,21 @@ describe("PDF.js iframe adapter", () => {
     adapter = createAdapter();
   });
   afterEach(() => adapter.destroy());
+
+  it("copies live host variable changes without a theme switch and stops after teardown", () => {
+    expect(adapter.copiedThemeVariables.get("--text-color")).toBe("rgb(10, 20, 30)");
+    expect(adapter.themeObservers.size).toBe(1);
+    adapter.hostThemeVariables.set("--text-color", "rgb(40, 50, 60)");
+    adapter.hostThemeVariables.set("--scrollbar-color", "rgb(70, 80, 90)");
+    adapter.variablesChanged();
+    expect(adapter.copiedThemeVariables.get("--text-color")).toBe("rgb(40, 50, 60)");
+    expect(adapter.copiedThemeVariables.get("--scrollbar-color")).toBe("rgb(70, 80, 90)");
+    adapter.destroy();
+    expect(adapter.themeObservers.size).toBe(0);
+    adapter.hostThemeVariables.set("--text-color", "rgb(90, 80, 70)");
+    adapter.variablesChanged();
+    expect(adapter.copiedThemeVariables.get("--text-color")).toBe("rgb(40, 50, 60)");
+  });
 
   it("sets security options before announcing readiness and keeps console diagnostics", async () => {
     await adapter.initialize();
