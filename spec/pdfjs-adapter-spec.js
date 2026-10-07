@@ -240,6 +240,22 @@ describe("PDF.js iframe adapter", () => {
     expect(adapter.copiedThemeVariables.get("--text-color")).toBe("rgb(40, 50, 60)");
   });
 
+  it("copies input, overlay, selection and focus roles into the iframe", () => {
+    const variables = [
+      "--input-background-color",
+      "--input-border-color",
+      "--overlay-background-color",
+      "--overlay-border-color",
+      "--text-color-selected",
+      "--accent-indicator-color",
+    ];
+    variables.forEach((name, i) => adapter.hostThemeVariables.set(name, `rgb(${i + 1}, 20, 30)`));
+    adapter.variablesChanged();
+    variables.forEach((name, i) => {
+      expect(adapter.copiedThemeVariables.get(name)).toBe(`rgb(${i + 1}, 20, 30)`);
+    });
+  });
+
   it("sets security options before announcing readiness and keeps console diagnostics", async () => {
     await adapter.initialize();
     expect(adapter.options.enableScripting).toBe(false);

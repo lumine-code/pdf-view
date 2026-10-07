@@ -5,9 +5,9 @@
  * custom properties, so this is a static stylesheet: it maps PDF.js's own theme
  * variables to Lumine's custom properties (--text-color, --app-background-color,
  * ...). Those Lumine properties do not exist inside this cross-document iframe,
- * so custom/viewer.js mirrors the live values from the host onto :root here (via
+ * so lib/pdfjs/viewer.js mirrors the live values from the host onto :root here (via
  * CSSOM, which the viewer's `style-src 'self'` CSP allows) and keeps them in sync
- * when the active theme changes. */
+ * when the host CSS cascade changes. */
 
 * {
   box-sizing: inherit;
@@ -48,27 +48,56 @@ textarea {
   --toolbar-bg-color: var(--tab-background-color-active);
   --toolbar-border-color: var(--pane-item-border-color);
   --button-hover-color: var(--background-color-highlight);
-  --toggled-btn-color: var(--text-color);
+  --toggled-btn-color: var(--text-color-selected);
   --toggled-btn-bg-color: var(--background-color-selected);
-  --toggled-hover-active-btn-color: var(--background-color-highlight);
+  --toggled-hover-active-btn-color: var(--background-color-selected);
   --dropdown-btn-bg-color: var(--tab-background-color-active);
   --separator-color: var(--pane-item-border-color);
   --field-color: var(--text-color);
-  --field-bg-color: var(--tab-background-color-active);
-  --field-border-color: var(--pane-item-border-color);
+  --field-bg-color: var(--input-background-color);
+  --field-border-color: var(--input-border-color);
   --findbar-nextprevious-btn-bg-color: var(--tab-background-color-active);
-  --treeitem-color: var(--text-color);
-  --treeitem-hover-color: var(--text-color);
-  --treeitem-selected-color: var(--text-color);
-  --treeitem-selected-bg-color: var(--background-color-selected);
   --sidebaritem-bg-color: var(--background-color-highlight);
-  --doorhanger-bg-color: var(--tab-background-color-active);
-  --doorhanger-border-color: var(--pane-item-border-color);
+  --doorhanger-bg-color: var(--overlay-background-color);
+  --doorhanger-border-color: var(--overlay-border-color);
   --doorhanger-hover-color: var(--text-color);
   --doorhanger-hover-bg-color: var(--background-color-highlight);
   --doorhanger-separator-color: var(--pane-item-border-color);
   --overlay-button-bg-color: var(--tab-background-color-active);
   --overlay-button-hover-bg-color: var(--background-color-highlight);
+}
+
+/* PDF.js declares its tree palette on .treeView, so a root-only mapping would
+   be shadowed before any outline, layer or attachment item reads it. */
+.treeView {
+  --treeitem-color: var(--text-color);
+  --treeitem-hover-color: var(--text-color);
+  --treeitem-bg-color: var(--background-color-highlight);
+  --treeitem-selected-color: var(--text-color-selected);
+  --treeitem-selected-bg-color: var(--background-color-selected);
+}
+
+/* The upstream hover rules also match toggled controls. Keep their selected
+   foreground and background paired, including the icon rendered as a mask. */
+.toolbarButton.toggled,
+.toolbarButton.toggled:is(:hover, :focus-visible, :active),
+.toggleButton:has(> input:checked) {
+  color: var(--text-color-selected);
+  background-color: var(--background-color-selected);
+}
+
+.toolbarButton.toggled::before,
+.toolbarButton.toggled:is(:hover, :focus-visible, :active)::before {
+  background-color: var(--text-color-selected);
+}
+
+.toggleButton:not(:has(> input:checked)):is(:hover, :has(> input:focus-visible)) {
+  color: var(--text-color);
+  background-color: var(--background-color-highlight);
+}
+
+.toolbarField:focus {
+  border-color: var(--accent-indicator-color);
 }
 
 #sidebarContent {
