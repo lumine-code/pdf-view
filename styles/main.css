@@ -7,10 +7,6 @@
   height: 100%;
 }
 
-.pdf-view-list .primary-text {
-  padding-inline-start: calc(var(--pdf-heading-depth, 0) * 1em);
-}
-
 .pdf-view-scrollmap.simplemap .marker {
   &.marker-pdf-h1 {
     z-index: 15;

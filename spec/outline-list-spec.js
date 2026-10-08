@@ -72,7 +72,6 @@ describe("PDF outline list", () => {
     const list = await show([container, external]);
 
     expect(list.getItems().map((row) => row.header)).toEqual([first, second, child]);
-    expect(list.getItems().map((row) => row.depth)).toEqual([1, 1, 2]);
     expect(list.getItems().map((row) => row.page)).toEqual([1, 5, 2]);
     expect(new Set(list.getItems().map((row) => row.id)).size).toBe(3);
     expect(list.getElement().textContent).toContain("Page 5");
