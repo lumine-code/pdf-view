@@ -30,7 +30,11 @@ describe("PDF viewer CSS role mapping", () => {
     document.body.innerHTML =
       '<button class="toolbarButton toggled">Toggle</button><label class="toggleButton"><input type="checkbox" checked>Option</label><input class="toolbarField"><div class="doorHanger">Menu</div><div class="treeView"><div class="treeItem selected"><a href="#item">Item</a></div></div>';
   });
-  afterEach(() => frame.remove());
+  afterEach(() => {
+    // Removing a focused iframe can strand the top document's focus on CI.
+    if (window.document.activeElement === frame) frame.blur();
+    frame.remove();
+  });
 
   it("keeps selected text and icon masks on their matching fill even when focused", () => {
     const button = document.querySelector("button");
