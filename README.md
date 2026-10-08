@@ -11,7 +11,7 @@ Built on Mozilla's PDF.js with theme integration, SyncTeX support, and a documen
 - **Auto-reload**: watches the file on disk and preserves the page, zoom, rotation, and scroll position when refreshing.
 - **LaTeX and Typst**: compiles `.tex` and `.typ` sources and follows SyncTeX jumps when the matching tools packages are installed.
 - **Build coordination**: pauses auto-refresh during a compile and reloads once the build finishes.
-- **Document outline**: exposes the pdf outline to the navigation panel and tracks the active section while scrolling.
+- **Document outline**: searches headings in a picker, exposes the pdf outline to the navigation panel, and tracks the active section while scrolling.
 - **Scrollmap**: draws outline markers on the scrollbar when the scrollmap package is available.
 
 ## Installation
@@ -19,6 +19,10 @@ Built on Mozilla's PDF.js with theme integration, SyncTeX support, and a documen
 To install `pdf-view` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/pdf-view`.
 
 ## Commands
+
+Commands available in `.pdf-view`:
+
+- `pdf-view:list`: search the document outline and jump to a heading.
 
 Commands available in `lumine-workspace`:
 

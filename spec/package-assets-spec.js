@@ -92,6 +92,7 @@ describe("pdf-view package assets", () => {
   it("names only registered commands in the menu and the keymap", () => {
     const registered = new Set([
       "pdf-view:reload-all",
+      "pdf-view:list",
       ...Object.keys(require("../lib/main").viewerCommands()),
     ]);
     const named = [];
@@ -108,6 +109,12 @@ describe("pdf-view package assets", () => {
     for (const command of named) {
       expect(registered.has(command)).toBe(true);
     }
+  });
+
+  it("keeps the heading picker in the PDF keymap and out of the application menu", () => {
+    expect(parseJsonc("keymaps/main.json")[".pdf-view"].g).toBe("pdf-view:list");
+    expect(JSON.stringify(parseJsonc("menus/main.json").menu)).not.toContain("pdf-view:list");
+    expect(require("../lib/main").viewerCommands()["pdf-view:list"]).toBeUndefined();
   });
 
   it("keeps the config JSON free of trailing commas", () => {
