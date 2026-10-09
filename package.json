@@ -23,6 +23,9 @@
     "lumine": "^1.0.0"
   },
   "main": "./lib/main",
+  "specPackages": [
+    "scrollmap"
+  ],
   "files": [
     "docs",
     "keymaps",

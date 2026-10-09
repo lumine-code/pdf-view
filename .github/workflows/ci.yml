@@ -82,6 +82,8 @@ jobs:
       # retries absorb flaky git-hosted fork downloads.
       - name: Use HTTPS for GitHub git dependencies
         run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+      - name: Install declared spec packages
+        run: node lumine/script/install-spec-packages.js --package pdf-view --home "$RUNNER_TEMP/lumine-spec-home" --github-env "$GITHUB_ENV"
       - name: Install editor dependencies
         working-directory: lumine
         run: |
