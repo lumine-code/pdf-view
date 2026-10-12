@@ -4,7 +4,7 @@ const path = require("path");
 const { createPdf } = require("./helpers/pdf-fixture");
 
 describe("PDF.js integration", () => {
-  let main, directory, viewer, previousConfig;
+  let main, directory, viewer, previousConfig, keyboardBindings;
 
   beforeEach(async () => {
     jasmine.useRealClock();
@@ -25,6 +25,8 @@ describe("PDF.js integration", () => {
   });
 
   afterEach(async () => {
+    keyboardBindings?.dispose();
+    keyboardBindings = null;
     if (viewer) {
       if (document.activeElement === viewer.frame) viewer.frame.blur();
       const observation = viewer.file;
@@ -59,6 +61,138 @@ describe("PDF.js integration", () => {
     await viewer.whenReady();
     return waitForDocument();
   };
+
+  const press = (target, key, modifiers = {}, type = "keydown") => {
+    const event = new viewer.frame.contentWindow.KeyboardEvent(type, {
+      key,
+      code: key.startsWith("Arrow") ? key : key === "Alt" ? "AltLeft" : `Key${key.toUpperCase()}`,
+      bubbles: true,
+      cancelable: true,
+      ...modifiers,
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+  const installPaneBindings = () => {
+    const bindings = {};
+    for (const direction of ["up", "down", "left", "right"]) {
+      bindings[`alt-${direction}`] = `window:focus-pane-${direction}`;
+      bindings[`alt-z ${direction}`] = `pane:move-active-item-${direction}`;
+      bindings[`alt-z alt-${direction}`] = `pane:split-${direction}-and-move-active-item`;
+      bindings[`alt-x ${direction}`] = `pane:copy-active-item-${direction}`;
+      bindings[`alt-x alt-${direction}`] = `pane:split-${direction}-and-copy-active-item`;
+    }
+    keyboardBindings = lumine.keymaps.add("pdf-pane-keyboard-regression", {
+      "lumine-workspace": bindings,
+    });
+  };
+
+  for (const action of ["focus", "move", "copy", "split-move", "split-copy"]) {
+    for (const direction of ["up", "down", "left", "right"]) {
+      it(`runs ${action} ${direction} from a focused input in the live PDF iframe`, async () => {
+        jasmine.attachToDOM(lumine.workspace.getElement());
+        await open();
+        await lumine.workspace.open(viewer);
+        await waitForDocument();
+        installPaneBindings();
+        const sourcePane = lumine.workspace.paneForItem(viewer);
+        const split = action.startsWith("split-");
+        let targetPane;
+        if (!split) {
+          const editor = lumine.workspace.buildTextEditor();
+          targetPane = sourcePane[`split${direction[0].toUpperCase()}${direction.slice(1)}`]({
+            items: [editor],
+          });
+        }
+        sourcePane.activate();
+        viewer.frame.focus();
+        const input = viewer.frame.contentDocument.getElementById("pageNumber");
+        input.focus();
+        expect(viewer.frame.contentDocument.activeElement).toBe(input);
+        const app = application();
+        const method =
+          action === "focus"
+            ? "focusPaneInDirection"
+            : action.endsWith("move")
+              ? "movePaneItem"
+              : "copyPaneItem";
+        const operation = spyOn(lumine.workspace, method).and.callThrough();
+        if (action !== "focus") {
+          const prefix = action.endsWith("move") ? "z" : "x";
+          expect(press(input, prefix, { altKey: true }).defaultPrevented).toBe(true);
+        }
+        const suffix = press(input, `Arrow${direction[0].toUpperCase()}${direction.slice(1)}`, {
+          altKey: action === "focus" || split,
+        });
+        expect(suffix.defaultPrevented).toBe(true);
+        expect(operation).toHaveBeenCalledTimes(1);
+        if (!operation.calls.count()) return;
+        const result = await operation.calls.mostRecent().returnValue;
+        expect(operation.calls.mostRecent().args[1].sourcePane).toBe(sourcePane);
+        if (action === "focus") {
+          expect(lumine.workspace.getActivePane()).toBe(targetPane);
+        } else {
+          expect(result.pane).toBe(split ? lumine.workspace.paneForItem(result.item) : targetPane);
+          expect(result.pane.getActiveItem()).toBe(result.item);
+          if (action.endsWith("move")) {
+            expect(result.item).toBe(viewer);
+            expect(application()).toBe(app);
+          } else {
+            expect(result.item).not.toBe(viewer);
+            expect(sourcePane.getItems()).toContain(viewer);
+            result.item.frame.blur();
+            const observation = result.item.file;
+            result.item.destroy();
+            await observation.closed;
+          }
+        }
+      });
+    }
+  }
+
+  it("keeps ordinary editing, an unbound chord suffix and IME input native in the iframe", async () => {
+    jasmine.attachToDOM(lumine.workspace.getElement());
+    await open();
+    await lumine.workspace.open(viewer);
+    await waitForDocument();
+    installPaneBindings();
+    const input = viewer.frame.contentDocument.getElementById("pageNumber");
+    input.focus();
+    const dispatch = spyOn(viewer.element, "dispatchEvent").and.callThrough();
+    expect(press(input, "ArrowLeft").defaultPrevented).toBe(false);
+    expect(press(input, "a").defaultPrevented).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+    press(input, "z", { altKey: true });
+    expect(press(input, "q").defaultPrevented).toBe(false);
+    dispatch.calls.reset();
+    expect(press(input, "ArrowRight").defaultPrevented).toBe(false);
+    expect(press(input, "a", { isComposing: true }).defaultPrevented).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(viewer.frame.contentDocument.activeElement).toBe(input);
+  });
+
+  it("completes a keyup binding from the iframe without claiming unrelated key releases", async () => {
+    jasmine.attachToDOM(lumine.workspace.getElement());
+    await open();
+    await lumine.workspace.open(viewer);
+    await waitForDocument();
+    keyboardBindings = lumine.keymaps.add("pdf-pane-keyup-regression", {
+      "lumine-workspace": { "alt-z ^alt": "pane:split-right-and-copy-active-item" },
+    });
+    const input = viewer.frame.contentDocument.getElementById("pageNumber");
+    input.focus();
+    const copy = spyOn(lumine.workspace, "copyPaneItem").and.callThrough();
+    expect(press(input, "z", { altKey: true }).defaultPrevented).toBe(true);
+    expect(press(input, "Alt", {}, "keyup").defaultPrevented).toBe(true);
+    expect(copy).toHaveBeenCalledTimes(1);
+    const { item } = await copy.calls.mostRecent().returnValue;
+    item.frame.blur();
+    const observation = item.file;
+    item.destroy();
+    await observation.closed;
+    input.focus();
+    expect(press(input, "q", {}, "keyup").defaultPrevented).toBe(false);
+  });
 
   it("configures the real viewer before initialization and renders through a worker", async () => {
     const app = await open();
