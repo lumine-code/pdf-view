@@ -74,6 +74,56 @@ describe("PDF.js integration", () => {
     expect(viewer.refreshController.loadedDiskFingerprint).not.toBeNull();
   });
 
+  it("copies the full PDF view and moves the live iframe without rebuilding its document", async () => {
+    jasmine.attachToDOM(lumine.workspace.getElement());
+    await open({ pages: 3 });
+    await lumine.workspace.open(viewer);
+    await waitForDocument();
+    const app = application();
+    app.pdfViewer.pagesRotation = 90;
+    app.viewsManager.toggle();
+    app.eventBus.dispatch("switchscrollmode", { source: app, mode: 1 });
+    app.eventBus.dispatch("switchspreadmode", { source: app, mode: 1 });
+    app.pdfLinkService.setHash("page=2&zoom=150,40,650");
+    for (let index = 0; index < 3; index++)
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    const state = viewer.frame.pdfViewerCaptureViewState();
+    const { item: copy } = await lumine.workspace.copyPaneItem(viewer, { splitDirection: "right" });
+    try {
+      copy.element.style.cssText = viewer.element.style.cssText;
+      await copy.whenReady();
+      await globalThis.conditionPromise(() => {
+        const copied = copy.frame.contentWindow.PDFViewerApplication;
+        return copied?.pdfDocument && copied.isInitialViewSet && copy.outlineLoaded;
+      }, "copied PDF document");
+      const copied = copy.frame.contentWindow.PDFViewerApplication;
+      expect(copied).not.toBe(app);
+      expect(copied.pdfViewer.pagesRotation).toBe(state.rotation);
+      expect(copied.pdfViewer.scrollMode).toBe(state.scrollMode);
+      expect(copied.pdfViewer.spreadMode).toBe(state.spreadMode);
+      expect(String(copied.pdfViewer.currentScaleValue)).toBe(String(state.zoom));
+      const restoredState = copy.frame.pdfViewerCaptureViewState();
+      expect(restoredState.page).toBe(state.page);
+      expect(Math.abs(restoredState.left - state.left)).toBeLessThanOrEqual(2);
+      expect(Math.abs(restoredState.top - state.top)).toBeLessThanOrEqual(2);
+      expect(restoredState.sidebarView).toBe(state.sidebarView);
+      expect(copied.pdfViewer.currentPageNumber).toBe(app.pdfViewer.currentPageNumber);
+      const originalDocument = app.pdfDocument;
+      const capture = viewer.frame.pdfViewerCaptureViewState;
+      await lumine.workspace.movePaneItem(viewer, { splitDirection: "down" });
+      for (let index = 0; index < 3; index++)
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      expect(application()).toBe(app);
+      expect(app.pdfDocument).toBe(originalDocument);
+      expect(viewer.frame.pdfViewerCaptureViewState).toBe(capture);
+      viewer.destroy();
+      expect(copy.destroyed).toBe(false);
+      expect(copy.frame.contentWindow.PDFViewerApplication).toBe(copied);
+    } finally {
+      copy.destroy();
+    }
+  });
+
   it("loads and refreshes filenames containing URL delimiters", async () => {
     const app = await open({}, "chapter #1 + 50%.pdf");
     const previous = app.pdfDocument;
