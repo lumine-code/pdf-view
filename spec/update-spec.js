@@ -2,6 +2,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const https = require("https");
+const vm = require("vm");
 const { EventEmitter } = require("events");
 const { Readable } = require("stream");
 const {
@@ -18,6 +19,8 @@ const HTML = `<head>
     <link rel="stylesheet" href="viewer.css" />
     <script src="viewer.mjs" type="module"></script>
 </head>`;
+const PDF_METADATA_LOG =
+  'console.log(`PDF ${pdfDocument.fingerprints[0]} [${info.PDFFormatVersion} ` + `${(metadata?.get("pdf:producer") || info.Producer || "-").trim()} / ` + `${(metadata?.get("xmp:creatortool") || info.Creator || "-").trim()}` + `] (PDF.js: ${version || "?"} [${build || "?"}])`);';
 const VIEWER = `const options = new Map([
   ["supportsPrinting", { value: true }],
   ["verbosity", { value: 1 }],
@@ -28,7 +31,8 @@ const pdfViewer = this.pdfViewer = new PDFViewer({
 });
 if (evt.pageNumber === pageNumber) {
   evt.source.textLayer.div.focus();
-}`;
+}
+${PDF_METADATA_LOG}`;
 
 function writeDistribution(directory, version) {
   const files = {
@@ -106,10 +110,85 @@ describe("PDF.js update patches", () => {
         `${VIEWER}\nif (evt.pageNumber === pageNumber) {\n  evt.source.textLayer.div.focus();\n}`,
         "destination text-layer focus",
       ],
+      [VIEWER.replace(PDF_METADATA_LOG, ""), "PDF metadata log"],
+      [`${VIEWER}\n${PDF_METADATA_LOG}`, "PDF metadata log"],
     ]) {
       expect(() => patchViewerMjs(source)).toThrowError(new RegExp(`${label} anchor, found [02]`));
     }
   });
+});
+
+describe("PDF.js metadata logging", () => {
+  for (const verbosity of [0, 1, 5]) {
+    it(`only logs the document banner at info verbosity (${verbosity})`, async () => {
+      const viewer = fs.readFileSync(
+        path.join(__dirname, "..", "vendors", "pdfjs-dist", "web", "viewer.mjs"),
+        "utf8",
+      );
+      const method = viewer.match(
+        / {2}(async _initializeMetadata\(pdfDocument\) \{[\s\S]*?\r?\n {2}\}),/,
+      );
+      if (!method) throw new Error("Could not find the PDF.js metadata initializer");
+      const diagnostics = {
+        log: jasmine.createSpy("log"),
+        warn: jasmine.createSpy("warn"),
+      };
+      const initializeMetadata = vm.runInNewContext(`({${method[1]}})._initializeMetadata`, {
+        AppOptions: { get: () => verbosity },
+        VerbosityLevel: { INFOS: 5 },
+        console: diagnostics,
+        version: "test-version",
+        build: "test-build",
+      });
+      const info = { PDFFormatVersion: "1.5", IsAcroFormPresent: true };
+      const metadata = new Map([
+        ["pdf:producer", "Test producer"],
+        ["xmp:creatortool", "Test creator"],
+      ]);
+      const pdfDocument = {
+        fingerprints: ["test-fingerprint"],
+        getMetadata: async () => ({
+          info,
+          metadata,
+          contentDispositionFilename: "test.pdf",
+          contentLength: 123,
+          hasStructTree: true,
+        }),
+      };
+      const app = {
+        pdfDocument,
+        externalServices: { reportTelemetry: jasmine.createSpy("reportTelemetry") },
+        pdfViewer: { renderForms: false },
+        eventBus: { dispatch: jasmine.createSpy("dispatch") },
+        _docTitle: "Test title",
+        setTitle: jasmine.createSpy("setTitle"),
+      };
+
+      await initializeMetadata.call(app, pdfDocument);
+
+      expect(diagnostics.log.calls.count()).toBe(verbosity === 5 ? 1 : 0);
+      if (verbosity === 5) {
+        expect(diagnostics.log).toHaveBeenCalledWith(
+          "PDF test-fingerprint [1.5 Test producer / Test creator] (PDF.js: test-version [test-build])",
+        );
+      }
+      expect(diagnostics.warn).toHaveBeenCalledOnceWith(
+        "Warning: Interactive form support is not enabled",
+      );
+      expect(app.documentInfo).toBe(info);
+      expect(app.metadata).toBe(metadata);
+      expect(app._contentDispositionFilename).toBe("test.pdf");
+      expect(app._contentLength).toBe(123);
+      expect(app.setTitle).toHaveBeenCalledOnceWith("Test title - test.pdf");
+      expect(app.externalServices.reportTelemetry).toHaveBeenCalledOnceWith({
+        type: "taggedPDF",
+        data: true,
+      });
+      expect(app.eventBus.dispatch).toHaveBeenCalledOnceWith("metadataloaded", {
+        source: app,
+      });
+    });
+  }
 });
 
 describe("PDF.js update transaction", () => {

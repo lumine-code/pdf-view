@@ -119,6 +119,14 @@ function patchViewerMjs(content) {
     );
     content = replaceRequired(content, pattern, (_, prefix) => prefix + to, `${name} option`);
   }
+  // The viewer's metadata banner bypasses the library's verbosity setting.
+  // Keep it available at info level without changing source-map line numbers.
+  content = replaceRequired(
+    content,
+    /^([ \t]*)(?:if \(AppOptions\.get\("verbosity"\) >= VerbosityLevel\.INFOS\) )?(console\.log\(`PDF \$\{pdfDocument\.fingerprints\[0\]\}[^\r\n]*\);)/gm,
+    (_, indent, log) => `${indent}if (AppOptions.get("verbosity") >= VerbosityLevel.INFOS) ${log}`,
+    "PDF metadata log",
+  );
   // The constructor patch enabled borderless full-width pages, without changing
   // PDF.js's scale calculations or assuming the host's scrollbar width.
   content = replaceRequired(
