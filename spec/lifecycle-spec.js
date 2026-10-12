@@ -33,7 +33,7 @@ describe("pdf-view lifecycle", () => {
     const result = main.deserialize({ filePath: __filename, hash: "#page=2" });
 
     expect(result).toBe(restored);
-    expect(main.createViewer).toHaveBeenCalledWith(__filename, "#page=2");
+    expect(main.createViewer).toHaveBeenCalledWith(__filename, "#page=2", undefined);
     expect(main.active).toBeFalsy();
     expect(main.disposables).toBeNull();
   });
