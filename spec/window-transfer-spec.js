@@ -63,4 +63,24 @@ describe("PDF presentation window transfers", () => {
     expect(viewer.element.ownerDocument).toBe(document);
     expect(viewer.file).toBe(fileObservation);
   });
+  it("restores the PDF document when its auxiliary native host disappears", async () => {
+    const file = path.join(directory, "recovery.pdf");
+    fs.writeFileSync(file, createPdf({ pages: 3 }));
+    viewer = await lumine.workspace.open(file);
+    viewer.element.style.cssText = "width:800px;height:600px";
+    await viewer.whenReady();
+    const extra = await lumine.workspace.detachItem(viewer);
+    await globalThis.conditionPromise(
+      () => viewer.ready && !!viewer.frame.pdfViewerCaptureViewState?.(),
+    );
+    viewer.frame.contentWindow.PDFViewerApplication.pdfViewer.currentPageNumber = 2;
+    await extra.windowService.close();
+    await globalThis.conditionPromise(() => extra.isDestroyed());
+    await globalThis.conditionPromise(
+      () => viewer.ready && viewer.frame.pdfViewerCaptureViewState?.()?.page === 2,
+    );
+    expect(viewer.element.ownerDocument).toBe(document);
+    expect(lumine.workspace.getPaneItems()).toContain(viewer);
+    expect(viewer.frame.pdfViewerCaptureViewState().page).toBe(2);
+  });
 });
