@@ -52,6 +52,52 @@ describe("pdf-view lifecycle", () => {
     expect(main.createViewer).toHaveBeenCalledWith(filePath, "#nameddest=MAT");
   });
 
+  it("preserves a file URI fragment supplied with its normalized path", async () => {
+    const filePath = path.join(__dirname, "manual.pdf");
+    const viewer = { viewer: true };
+    spyOn(main, "createViewer").and.returnValue(viewer);
+    main.activate();
+
+    expect(await lumine.workspace.createItemForURI(filePath, { uriFragment: "#page=3" })).toBe(
+      viewer,
+    );
+    expect(main.createViewer).toHaveBeenCalledWith(filePath, "#page=3");
+  });
+
+  it("allows an explicit fragment to override a raw path destination", async () => {
+    const filePath = path.join(__dirname, "manual.pdf");
+    const viewer = { viewer: true };
+    spyOn(main, "createViewer").and.returnValue(viewer);
+    main.activate();
+
+    expect(
+      await lumine.workspace.createItemForURI(`${filePath}#page=2`, { uriFragment: "#page=3" }),
+    ).toBe(viewer);
+    expect(main.createViewer).toHaveBeenCalledWith(filePath, "#page=3");
+  });
+
+  it("reuses matching file URL destinations and keeps distinct destination viewers", async () => {
+    directory = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "pdf-view-url-destination-")),
+    );
+    const filePath = path.join(directory, "document.pdf");
+    fs.writeFileSync(filePath, createPdf({ pages: 3 }));
+    const uri = pathToFileURL(filePath);
+    main.activate();
+
+    uri.hash = "page=2";
+    const secondPage = await lumine.workspace.open(uri.href);
+    expect(secondPage.getURI()).toBe(`${filePath}#page=2`);
+    expect(await lumine.workspace.open(uri.href)).toBe(secondPage);
+
+    uri.hash = "page=3";
+    const thirdPage = await lumine.workspace.open(uri.href);
+    expect(thirdPage).not.toBe(secondPage);
+    expect(thirdPage.getURI()).toBe(`${filePath}#page=3`);
+    expect(await lumine.workspace.open(`${filePath}#page=3`)).toBe(thirdPage);
+    expect(await lumine.workspace.open(uri.href, { opener: "pdf-view" })).toBe(thirdPage);
+  });
+
   it("keeps pane copies in the package lifecycle and services", async () => {
     directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pdf-view-copy-")));
     const filePath = path.join(directory, "document.pdf");
