@@ -1,0 +1,16 @@
+{
+  "title": "pdf-view",
+  "description": "Read a generated signal report in the PDF viewer.",
+  "recordedOn": "2026-10-13",
+  "sourceRevision": "e0990303ebf40635707dc99b0c59caa1b5eb605e",
+  "mode": "normal",
+  "fontSettings": "default",
+  "images": [
+    {
+      "file": "demo.png",
+      "label": "Read a generated signal report in the PDF viewer.",
+      "width": 1200,
+      "height": 760
+    }
+  ]
+}

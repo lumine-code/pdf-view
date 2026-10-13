@@ -14,6 +14,8 @@ Built on Mozilla's PDF.js with theme integration, SyncTeX support, and a documen
 - **Document outline**: searches headings in a picker, exposes the pdf outline to the navigation panel, and tracks the active section while scrolling.
 - **Scrollmap**: draws outline markers on the scrollbar when the scrollmap package is available.
 
+![Read a generated signal report in the PDF viewer.](.github/demo.png)
+
 ## Installation
 
 To install `pdf-view` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/pdf-view`.
