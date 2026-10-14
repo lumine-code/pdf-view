@@ -8,9 +8,8 @@
         {
           "label": "PDF View",
           "submenu": [
-            { "label": "Refresh", "command": "pdf-view:refresh" },
-            { "label": "Toggle Auto Refresh", "command": "pdf-view:toggle-refreshing" },
-            { "label": "Reload All", "command": "pdf-view:reload-all" },
+            { "label": "Reload Current PDF", "command": "pdf-view:refresh" },
+            { "label": "Save Copy", "command": "pdf-view:download" },
             { "type": "separator" },
             {
               "label": "Navigation",
@@ -22,14 +21,23 @@
               ]
             },
             {
-              "label": "View",
+              "label": "Find",
+              "submenu": [
+                { "label": "Find Text…", "command": "pdf-view:find" },
+                { "label": "Find Next Match", "command": "pdf-view:find-next" },
+                { "label": "Find Previous Match", "command": "pdf-view:find-previous" }
+              ]
+            },
+            { "type": "separator" },
+            {
+              "label": "Display",
               "submenu": [
                 { "label": "Zoom In", "command": "pdf-view:zoom-in" },
                 { "label": "Zoom Out", "command": "pdf-view:zoom-out" },
-                { "label": "Reset Zoom", "command": "pdf-view:zoom-reset" },
+                { "label": "Use Automatic Zoom", "command": "pdf-view:zoom-reset" },
                 { "type": "separator" },
-                { "label": "Page Width", "command": "pdf-view:page-width" },
-                { "label": "Page Fit", "command": "pdf-view:page-fit" },
+                { "label": "Fit Page Width", "command": "pdf-view:page-width" },
+                { "label": "Fit Whole Page", "command": "pdf-view:page-fit" },
                 { "label": "Actual Size", "command": "pdf-view:page-actual" },
                 { "type": "separator" },
                 {
@@ -38,15 +46,15 @@
                     { "label": "Vertical", "command": "pdf-view:scroll-mode-vertical" },
                     { "label": "Horizontal", "command": "pdf-view:scroll-mode-horizontal" },
                     { "label": "Wrapped", "command": "pdf-view:scroll-mode-wrapped" },
-                    { "label": "Page", "command": "pdf-view:scroll-mode-page" }
+                    { "label": "One Page at a Time", "command": "pdf-view:scroll-mode-page" }
                   ]
                 },
                 {
-                  "label": "Spreads",
+                  "label": "Page Pairs",
                   "submenu": [
-                    { "label": "None", "command": "pdf-view:spread-none" },
-                    { "label": "Odd", "command": "pdf-view:spread-odd" },
-                    { "label": "Even", "command": "pdf-view:spread-even" }
+                    { "label": "Single Pages", "command": "pdf-view:spread-none" },
+                    { "label": "Odd Pages on Left", "command": "pdf-view:spread-odd" },
+                    { "label": "Even Pages on Left", "command": "pdf-view:spread-even" }
                   ]
                 },
                 { "type": "separator" },
@@ -55,28 +63,24 @@
                   "label": "Rotate Counterclockwise",
                   "command": "pdf-view:rotate-counterclockwise"
                 },
-                { "label": "Toggle Sidebar", "command": "pdf-view:toggle-sidebar" },
-                { "label": "Presentation Mode", "command": "pdf-view:presentation-mode" }
+                { "label": "Toggle Thumbnails and Outline", "command": "pdf-view:toggle-sidebar" },
+                { "label": "Start Presentation", "command": "pdf-view:presentation-mode" }
               ]
             },
             {
               "label": "Tools",
               "submenu": [
-                { "label": "Find", "command": "pdf-view:find" },
-                { "label": "Find Next", "command": "pdf-view:find-next" },
-                { "label": "Find Previous", "command": "pdf-view:find-previous" },
-                { "type": "separator" },
-                { "label": "Text Selection Tool", "command": "pdf-view:select-tool" },
-                { "label": "Hand Tool", "command": "pdf-view:hand-tool" },
-                { "type": "separator" },
-                { "label": "Copy Selection", "command": "pdf-view:copy" }
+                { "label": "Select Text", "command": "pdf-view:select-tool" },
+                { "label": "Pan Pages", "command": "pdf-view:hand-tool" },
+                { "label": "Copy Selected Text", "command": "pdf-view:copy" }
               ]
             },
             { "type": "separator" },
             { "label": "Compile Source", "command": "pdf-view:compile" },
             { "label": "Open Source", "command": "pdf-view:open-tex" },
             { "type": "separator" },
-            { "label": "Download", "command": "pdf-view:download" }
+            { "label": "Toggle Automatic Reload", "command": "pdf-view:toggle-refreshing" },
+            { "label": "Reload All Open PDFs", "command": "pdf-view:reload-all" }
           ]
         }
       ]
