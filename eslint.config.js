@@ -10,7 +10,7 @@ module.exports = [
   {
     // Upstream PDF.js is generated code. The embedding adapter lives in lib
     // and is checked with the rest of the package.
-    ignores: ["node_modules/**", "vendors/**", ".dev/**"],
+    ignores: ["node_modules/**", "vendors/**", ".dev/**", "demo/**"],
   },
   js.configs.recommended,
   n.configs["flat/recommended-script"],
