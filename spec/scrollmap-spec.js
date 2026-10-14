@@ -55,4 +55,13 @@ describe("PdfScrollmap", () => {
     expect(element.parentNode).toBeNull();
     expect(scrollmap.viewerContexts.has(viewer)).toBe(false);
   });
+
+  it("cancels a queued document update when its viewer is removed", async () => {
+    const context = scrollmap.viewerContexts.get(viewer);
+    const render = spyOn(scrollmap, "renderViewer");
+    scrollmap.scheduleRender(context);
+    scrollmap.removeViewer(viewer);
+    await lumine.views.getNextUpdatePromise();
+    expect(render).not.toHaveBeenCalled();
+  });
 });
