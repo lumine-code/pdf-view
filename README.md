@@ -24,11 +24,7 @@ To install `pdf-view` search for it in the Install pane of the Lumine settings, 
 
 Commands available in `.pdf-view`:
 
-- `pdf-view:list`: search the document outline and jump to a heading.
-
-Commands available in `lumine-workspace`:
-
-- `pdf-view:reload-all`: reload all open PDF views,
+- `pdf-view:list`: search the document outline and jump to a heading,
 - `pdf-view:refresh`: refresh content for the current viewer,
 - `pdf-view:toggle-refreshing`: toggle auto-refresh for the current viewer,
 - `pdf-view:compile`: compile the source `.typ` or `.tex` file,
@@ -67,6 +63,10 @@ Commands available in `lumine-workspace`:
 - `pdf-view:toggle-sidebar`: toggle the PDF sidebar,
 - `pdf-view:presentation-mode`: enter presentation mode,
 - `pdf-view:download`: download the PDF.
+
+Commands available in `lumine-workspace`:
+
+- `pdf-view:reload-all`: reload all open PDF views.
 
 ## Style
 
