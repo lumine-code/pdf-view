@@ -103,12 +103,31 @@ describe("PDF outline list", () => {
 
   it("shows the empty state for a PDF without an outline", async () => {
     const list = await show(null);
+    await list.setKeepOpen(true);
 
     expect(list.getItems()).toEqual([]);
     expect(list.getElement().textContent).toContain("No headings found");
     await list.confirmSelection();
     expect(viewer.scrollToDestination).not.toHaveBeenCalled();
     expect(picker.selectListHost.isVisible()).toBe(false);
+  });
+
+  it("navigates repeatedly in its captured viewer and adopts live outline replacements", async () => {
+    const first = heading("First chapter", "first", 0);
+    const second = heading("Second chapter", "second", 1);
+    const list = await show([first, second]);
+    await list.runAction("select-list:toggle-keep-open");
+
+    await list.confirmSelection();
+    await list.selectItemById(list.getItems().find((row) => row.header === second).id);
+    await list.confirmSelection();
+    const replacement = heading("Replacement chapter", "replacement", 3);
+    viewer.publishOutline([replacement]);
+    await lumine.views.getNextUpdatePromise();
+    await list.confirmSelection();
+
+    expect(viewer.scrollToDestination.calls.allArgs()).toEqual([[first], [second], [replacement]]);
+    expect(picker.selectListHost.isVisible()).toBe(true);
   });
 
   it("loads headings that arrive after the picker was opened", async () => {
