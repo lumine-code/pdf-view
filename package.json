@@ -34,7 +34,8 @@
     "scripts",
     "spec",
     "styles",
-    "vendors"
+    "vendors",
+    "THIRD_PARTY_NOTICES"
   ],
   "scripts": {
     "test": "lumine --test spec",
