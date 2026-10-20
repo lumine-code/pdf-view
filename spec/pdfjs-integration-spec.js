@@ -290,6 +290,110 @@ describe("PDF.js integration", () => {
     expect(app.pagesCount).toBe(2);
   });
 
+  for (const restored of [false, true]) {
+    it(`defers a hidden PDF's ${restored ? "restored" : "initial"} view until it becomes visible`, async () => {
+      const viewState = restored
+        ? {
+            page: 2,
+            zoom: "1.5",
+            left: 40,
+            top: 650,
+            rotation: 0,
+            scrollMode: 0,
+            spreadMode: 0,
+            sidebarView: 0,
+          }
+        : undefined;
+      const file = path.join(directory, "hidden.pdf");
+      // ViewHistory is keyed by PDF fingerprint, so a fresh path alone does
+      // not isolate this document from earlier three-page fixture views.
+      fs.writeFileSync(
+        file,
+        createPdf({
+          pages: 3,
+          prefix: `% hidden-${restored ? "restored" : "initial"}-${path.basename(directory)}\n`,
+        }),
+      );
+      let viewerConsole;
+      let documentInitialized = false;
+      let hiddenHost;
+      let hiddenStyle;
+      const onViewerLoaded = (event) => {
+        if (event.detail?.source !== viewer.frame.contentWindow) return;
+        const frameWindow = event.detail.source;
+        // Install before the adapter initializes: upstream initialization and
+        // the adapter's documentinit callback can otherwise log too early.
+        viewerConsole = spyOn(frameWindow.console, "error").and.callThrough();
+        const app = frameWindow.PDFViewerApplication;
+        app.initializedPromise.then(() => {
+          app.eventBus.on("documentinit", () => {
+            documentInitialized = true;
+          });
+        });
+      };
+      const scrollErrors = () =>
+        viewerConsole.calls
+          .allArgs()
+          .filter(([message]) => String(message).includes("offsetParent is not set"));
+      document.addEventListener("webviewerloaded", onViewerLoaded);
+      try {
+        viewer = main.createViewer(file, "", viewState);
+        viewer.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
+        if (restored) {
+          const hiddenClass = `pdfjs-hidden-${path.basename(directory)}`;
+          hiddenStyle = document.createElement("style");
+          hiddenStyle.textContent = `.${hiddenClass} { display: none; }`;
+          document.head.appendChild(hiddenStyle);
+          hiddenHost = document.createElement("div");
+          hiddenHost.className = hiddenClass;
+          hiddenHost.appendChild(viewer.element);
+          jasmine.attachToDOM(hiddenHost);
+        } else {
+          viewer.element.style.display = "none";
+          jasmine.attachToDOM(viewer.element);
+        }
+        await viewer.whenReady();
+        await globalThis.conditionPromise(() => application()?.pdfLoadingTask);
+        const app = application();
+        const pdfDocument = await app.pdfLoadingTask.promise;
+        for (let index = 0; index < 8; index++) await Promise.resolve();
+        expect(pdfDocument.numPages).toBe(3);
+        expect(app.pdfLoadingTask._worker.port instanceof viewer.frame.contentWindow.Worker).toBe(
+          true,
+        );
+        expect(app.pdfViewer.container.offsetParent).toBeNull();
+        expect(app.pdfDocument).toBeNull();
+        expect(documentInitialized).toBe(false);
+        expect(viewer.outlineLoaded).toBe(false);
+        expect(app.isInitialViewSet).toBe(false);
+        if (restored) expect(viewer.serialize().viewState).toEqual(viewState);
+        expect(scrollErrors()).toEqual([]);
+
+        if (restored) hiddenHost.className = "";
+        else viewer.element.style.display = "";
+        await waitForDocument();
+        await app.pdfViewer.onePageRendered;
+        for (let index = 0; index < 3; index++)
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        expect(documentInitialized).toBe(true);
+        expect(app.pdfDocument).toBe(pdfDocument);
+        expect(app.pdfViewer.currentPageNumber).toBe(restored ? 2 : 1);
+        const captured = viewer.frame.pdfViewerCaptureViewState();
+        expect(captured.page).toBe(restored ? 2 : 1);
+        expect(String(captured.zoom)).toBe(restored ? "1.5" : "page-width");
+        expect(Math.abs(captured.left - (restored ? 40 : 0))).toBeLessThanOrEqual(2);
+        expect(Math.abs(captured.top - (restored ? 650 : 792))).toBeLessThanOrEqual(2);
+        expect(viewer.frame.contentDocument.querySelector(".page canvas")).not.toBeNull();
+        expect(scrollErrors()).toEqual([]);
+      } finally {
+        document.removeEventListener("webviewerloaded", onViewerLoaded);
+        hiddenHost?.remove();
+        hiddenStyle?.remove();
+      }
+    });
+  }
+
   it("bounds failed parses and recovers when the file changes again", async () => {
     const app = await open();
     fs.writeFileSync(viewer.filePath, "a stable invalid document");

@@ -34,7 +34,21 @@ async function flushTasks() {
   for (let index = 0; index < 8; index++) await Promise.resolve();
 }
 
-function createAdapter() {
+function createFrame({ visible = false, viewState } = {}) {
+  const frame = {
+    isConnected: true,
+    clientWidth: visible ? 1000 : 0,
+    clientHeight: visible ? 800 : 0,
+    style: {},
+    parentElement: { style: {} },
+    closest: () => null,
+    pdfViewerInitialViewState: viewState,
+    getClientRects: () => (frame.clientWidth && frame.clientHeight ? [{}] : []),
+  };
+  return frame;
+}
+
+function createAdapter({ frame } = {}) {
   const messages = [];
   const listeners = new Map();
   const hostListeners = new Map();
@@ -45,6 +59,24 @@ function createAdapter() {
   const hostThemeVariables = new Map([["--text-color", "rgb(10, 20, 30)"]]);
   const copiedThemeVariables = new Map();
   const themeObservers = new Set();
+  const resizeObservers = [];
+  const mutationObservers = [];
+  class AdapterResizeObserver {
+    constructor(callback) {
+      this.callback = callback;
+      this.observe = jasmine.createSpy("observeFrame");
+      this.disconnect = jasmine.createSpy("disconnectFrame");
+      resizeObservers.push(this);
+    }
+  }
+  class AdapterMutationObserver {
+    constructor(callback) {
+      this.callback = callback;
+      this.observe = jasmine.createSpy("observeVisibility");
+      this.disconnect = jasmine.createSpy("disconnectVisibility");
+      mutationObservers.push(this);
+    }
+  }
   const diagnosticConsole = { error: (...values) => diagnostics.push(values) };
   const eventBus = {
     on(name, callback) {
@@ -114,6 +146,7 @@ function createAdapter() {
     },
     load: (pdfDocument) => {
       app.pdfDocument = pdfDocument;
+      app.isInitialViewSet = true;
       eventBus.dispatch("pagesinit");
       eventBus.dispatch("documentinit");
     },
@@ -121,6 +154,7 @@ function createAdapter() {
       app.url = url;
     },
   };
+  const nativeLoad = spyOn(app, "load").and.callThrough();
   const tasks = [];
   const pdfjsLib = {
     GlobalWorkerOptions: {},
@@ -149,6 +183,7 @@ function createAdapter() {
     },
     clearTimeout: (timer) => timers.delete(timer),
     window: {
+      frameElement: frame,
       location: { search: "?requestId=7" },
       innerHeight: 600,
       addEventListener: (name, callback) => windowListeners.set(name, callback),
@@ -166,6 +201,8 @@ function createAdapter() {
       },
     },
     parent: {
+      ResizeObserver: AdapterResizeObserver,
+      MutationObserver: AdapterMutationObserver,
       postMessage: (message) => messages.push(message),
       getComputedStyle: () => ({ getPropertyValue: (name) => hostThemeVariables.get(name) || "" }),
       lumine: {
@@ -207,12 +244,21 @@ function createAdapter() {
     },
     tasks,
     pdfjsLib,
+    nativeLoad,
+    resizeObservers,
+    resize: () => {
+      for (const observer of resizeObservers) observer.callback();
+    },
+    mutationObservers,
+    mutate: () => {
+      for (const observer of mutationObservers) observer.callback();
+    },
     send: (data) => windowListeners.get("message")({ source: context.parent, data }),
     diagnosticConsole,
-    initialize: async () => {
+    initialize: async ({ documentReady = true } = {}) => {
       hostListeners.get("webviewerloaded")({ detail: { source: context.window } });
       await flushTasks();
-      eventBus.dispatch("documentinit");
+      if (documentReady) eventBus.dispatch("documentinit");
     },
     destroy: () => windowListeners.get("pagehide")(),
   };
@@ -265,6 +311,140 @@ describe("PDF.js iframe adapter", () => {
     expect(adapter.context.console.error).toBe(adapter.diagnosticConsole.error);
     adapter.context.logAdapterError("Diagnostic check", "detail");
     expect(adapter.diagnostics).toEqual([["pdf-view: Diagnostic check", "detail"]]);
+  });
+
+  it("preserves a hidden document's saved view and initializes it once layout becomes available", async () => {
+    const viewState = {
+      page: 2,
+      zoom: "1.25",
+      left: 5,
+      top: 310,
+      rotation: 90,
+      scrollMode: 0,
+      spreadMode: 0,
+      sidebarView: 0,
+    };
+    const frame = createFrame({ viewState });
+    adapter = createAdapter({ frame });
+    await adapter.initialize({ documentReady: false });
+    const pdfDocument = { numPages: 3, getOutline: async () => null };
+    const task = { destroy: jasmine.createSpy("destroyDeferred").and.resolveTo() };
+    adapter.app.pdfDocument = null;
+    adapter.app.pdfLoadingTask = task;
+    adapter.app.isInitialViewSet = false;
+    adapter.app.pdfViewer.pagesCount = 3;
+    const setHash = spyOn(adapter.app.pdfLinkService, "setHash");
+
+    adapter.app.load(pdfDocument);
+
+    expect(adapter.nativeLoad).not.toHaveBeenCalled();
+    expect(adapter.app.pdfDocument).toBeNull();
+    expect(frame.pdfViewerCaptureViewState()).toBeUndefined();
+    expect(adapter.messages.some((message) => message.type === "documentLoaded")).toBe(false);
+    expect(adapter.resizeObservers[0].observe).toHaveBeenCalledWith(frame);
+    frame.clientWidth = 1000;
+    frame.clientHeight = 800;
+    adapter.resize();
+    await flushTasks();
+
+    expect(adapter.nativeLoad).toHaveBeenCalledOnceWith(pdfDocument);
+    expect(adapter.app.pdfDocument).toBe(pdfDocument);
+    expect(setHash).toHaveBeenCalledWith("page=2&zoom=125,5,310");
+    expect(adapter.messages.filter((message) => message.type === "documentLoaded").length).toBe(1);
+    adapter.resize();
+    expect(adapter.nativeLoad).toHaveBeenCalledTimes(1);
+    expect(task.destroy).not.toHaveBeenCalled();
+  });
+
+  it("waits for an attached frame with nonzero layout before initializing the PDF", async () => {
+    const frame = createFrame({ visible: true });
+    frame.isConnected = false;
+    adapter = createAdapter({ frame });
+    await adapter.initialize({ documentReady: false });
+    const pdfDocument = { numPages: 1, getOutline: async () => null };
+    adapter.app.pdfLoadingTask = {};
+    adapter.app.load(pdfDocument);
+    adapter.resize();
+    expect(adapter.nativeLoad).not.toHaveBeenCalled();
+
+    frame.isConnected = true;
+    frame.clientHeight = 0;
+    adapter.resize();
+    expect(adapter.nativeLoad).not.toHaveBeenCalled();
+
+    frame.clientHeight = 800;
+    adapter.resize();
+    expect(adapter.nativeLoad).toHaveBeenCalledOnceWith(pdfDocument);
+  });
+
+  it("resumes from a visibility mutation without waiting for a resize notification", async () => {
+    const frame = createFrame();
+    adapter = createAdapter({ frame });
+    await adapter.initialize({ documentReady: false });
+    const pdfDocument = { numPages: 1, getOutline: async () => null };
+    adapter.app.pdfLoadingTask = {};
+    adapter.app.load(pdfDocument);
+    adapter.mutate();
+    expect(adapter.nativeLoad).not.toHaveBeenCalled();
+
+    frame.clientWidth = 1000;
+    frame.clientHeight = 800;
+    adapter.mutate();
+    expect(adapter.nativeLoad).toHaveBeenCalledOnceWith(pdfDocument);
+    adapter.resize();
+    adapter.mutate();
+    expect(adapter.nativeLoad).toHaveBeenCalledTimes(1);
+  });
+
+  it("discards a deferred document after another loading task takes ownership", async () => {
+    const frame = createFrame();
+    adapter = createAdapter({ frame });
+    await adapter.initialize({ documentReady: false });
+    const pdfDocument = { numPages: 1, getOutline: async () => null };
+    adapter.app.pdfLoadingTask = {};
+    adapter.app.load(pdfDocument);
+    adapter.app.pdfLoadingTask = {};
+    frame.clientWidth = 1000;
+    frame.clientHeight = 800;
+    adapter.resize();
+    expect(adapter.nativeLoad).not.toHaveBeenCalled();
+    expect(adapter.messages.some((message) => message.type === "documentLoaded")).toBe(false);
+
+    const currentDocument = { numPages: 1, getOutline: async () => null };
+    adapter.app.load(currentDocument);
+    expect(adapter.nativeLoad).toHaveBeenCalledOnceWith(currentDocument);
+  });
+
+  it("does not revive a deferred document after closing its loading task", async () => {
+    const frame = createFrame();
+    adapter = createAdapter({ frame });
+    await adapter.initialize({ documentReady: false });
+    const task = { destroy: jasmine.createSpy("destroyDeferred").and.resolveTo() };
+    adapter.app.pdfLoadingTask = task;
+    adapter.app.load({ numPages: 1, getOutline: async () => null });
+    await adapter.app.close();
+    frame.clientWidth = 1000;
+    frame.clientHeight = 800;
+    adapter.resize();
+    expect(adapter.nativeLoad).not.toHaveBeenCalled();
+    expect(task.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("disconnects layout observation and discards deferred loading when the iframe is destroyed", async () => {
+    const frame = createFrame();
+    adapter = createAdapter({ frame });
+    await adapter.initialize({ documentReady: false });
+    adapter.app.pdfLoadingTask = {};
+    adapter.app.load({ numPages: 1, getOutline: async () => null });
+    adapter.destroy();
+    frame.clientWidth = 1000;
+    frame.clientHeight = 800;
+    adapter.resize();
+    adapter.mutate();
+    expect(adapter.resizeObservers[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(adapter.mutationObservers[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(adapter.nativeLoad).not.toHaveBeenCalled();
+    expect(frame.pdfViewerCaptureViewState).toBeUndefined();
   });
 
   it("discards an old document's outline after a newer pagesinit", async () => {
