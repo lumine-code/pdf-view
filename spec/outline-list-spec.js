@@ -86,8 +86,7 @@ describe("PDF outline list", () => {
     const unrelated = makeViewer([heading("Other document", "other", 0)]);
     spyOn(lumine.workspace, "getActivePaneItem").and.returnValue(unrelated);
 
-    list.getQueryEditor().setText("combin");
-    await lumine.views.getNextUpdatePromise();
+    await list.setQuery("combin");
     expect(list.getFilteredItems().map((row) => row.header)).toEqual([loading]);
     expect(list.getElement().querySelectorAll(".character-match").length).toBeGreaterThan(0);
     await list.selectItemById(list.getItems().find((row) => row.header === loading).id);
@@ -192,8 +191,7 @@ describe("PDF outline list", () => {
 
   it("cancels through the query editor without navigating and resets the next search", async () => {
     const list = await show([heading("Chapter", "chapter", 0)]);
-    list.getQueryEditor().setText("chap");
-    await lumine.views.getNextUpdatePromise();
+    await list.setQuery("chap");
 
     lumine.commands.dispatch(list.getQueryEditor().getElement(), "core:cancel");
 
