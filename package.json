@@ -24,7 +24,8 @@
   },
   "main": "./lib/main",
   "specPackages": [
-    "scrollmap"
+    "scrollmap",
+    "invert-colors"
   ],
   "files": [
     "docs",
@@ -48,6 +49,11 @@
     "pdf-view": "deserialize"
   },
   "providedServices": {
+    "invert-colors.provider": {
+      "versions": {
+        "1.0.0": "provideInversionProvider"
+      }
+    },
     "pdf-view": {
       "versions": {
         "1.0.0": "providePdfView"
