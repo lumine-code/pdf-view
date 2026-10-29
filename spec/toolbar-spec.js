@@ -121,7 +121,7 @@ describe("PDF viewing controls", () => {
     const button = viewer.toolbar.scaleButton;
     button.style.setProperty("--ui-site-color-2", "rgb(20, 180, 50)");
     button.style.setProperty("--ui-site-color-3", "rgb(220, 120, 10)");
-    button.style.setProperty("--button-background-color", "rgb(230, 230, 230)");
+    viewer.element.style.setProperty("--button-background-color", "rgb(230, 230, 230)");
     viewer.setScale(1.25);
     const manual = getComputedStyle(button).backgroundColor;
     expect(button.classList.contains("selected")).toBe(false);
@@ -203,6 +203,127 @@ describe("PDF viewing controls", () => {
     expect(viewer.pdfViewer.currentScale).toBeGreaterThan(2);
     keymapEvent(viewer.viewport, "s");
     expect(viewer.getViewState().tool).toBe("select");
+  });
+
+  it("zooms smoothly with the wheel over the scale button without scrolling or taking focus", async () => {
+    await open(3);
+    viewer.setScale(1);
+    viewer.viewport.scrollTop = 200;
+    const outside = document.createElement("input");
+    jasmine.attachToDOM(outside);
+    outside.focus();
+    const bubbled = jasmine.createSpy("wheel outside the scale button");
+    viewer.element.addEventListener("wheel", bubbled);
+    const wheel = (deltaY, options = {}) => {
+      const event = new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY,
+        ...options,
+      });
+      viewer.toolbar.scaleButton.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(outside);
+      return viewer.zoomAnimation.promise;
+    };
+
+    wheel(-100);
+    expect(viewer.zoomAnimation.active).toBe(true);
+    const firstTarget = viewer.zoomAnimation.targetScale;
+    expect(firstTarget).toBeGreaterThan(1);
+    wheel(-100, { ctrlKey: true });
+    expect(viewer.zoomAnimation.targetScale).toBeGreaterThan(firstTarget);
+    wheel(100, { altKey: true });
+    await wheel(100, { metaKey: true });
+    expect(viewer.pdfViewer.currentScale).toBeCloseTo(1, 8);
+    expect(viewer.viewport.scrollTop).toBeCloseTo(200, 0);
+    expect(bubbled).not.toHaveBeenCalled();
+    expect(viewer.getCurrentPage()).toBe(1);
+    viewer.element.removeEventListener("wheel", bubbled);
+  });
+
+  it("accepts fine, line and page wheel input on the scale button and releases its listener", async () => {
+    await open(1);
+    const button = viewer.toolbar.scaleButton;
+    const wheel = (deltaY, deltaMode = 0) => {
+      const event = new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY,
+        deltaMode,
+      });
+      button.dispatchEvent(event);
+      return event;
+    };
+    viewer.setScale(1);
+    wheel(-0.5);
+    const fineTarget = viewer.zoomAnimation.targetScale;
+    expect(fineTarget).toBeGreaterThan(1);
+    expect(fineTarget).toBeLessThan(1.01);
+    wheel(0.5);
+    await viewer.zoomAnimation.promise;
+    expect(viewer.pdfViewer.currentScale).toBeCloseTo(1, 8);
+    wheel(-16);
+    const pixelTarget = viewer.zoomAnimation.targetScale;
+    viewer.setScale(1);
+    wheel(-1, WheelEvent.DOM_DELTA_LINE);
+    expect(viewer.zoomAnimation.targetScale).toBeCloseTo(pixelTarget, 8);
+    viewer.setScale(1);
+    wheel(-16 / viewer.viewport.clientHeight, WheelEvent.DOM_DELTA_PAGE);
+    expect(viewer.zoomAnimation.targetScale).toBeCloseTo(pixelTarget, 8);
+    await viewer.zoomAnimation.promise;
+    const scale = viewer.pdfViewer.currentScale;
+    expect(wheel(0).defaultPrevented).toBe(false);
+    expect(viewer.pdfViewer.currentScale).toBe(scale);
+    viewer.setScale(10);
+    expect(wheel(-100).defaultPrevented).toBe(true);
+    await viewer.zoomAnimation.promise;
+    expect(viewer.pdfViewer.currentScale).toBe(10);
+
+    await viewer.destroy();
+    const zoom = spyOn(viewer, "zoomBy");
+    expect(wheel(-100).defaultPrevented).toBe(false);
+    expect(zoom).not.toHaveBeenCalled();
+  });
+
+  it("navigates with the wheel anywhere on the page counter while preserving focus and page bounds", async () => {
+    await open(3);
+    viewer.setScale(1);
+    const { pageInput, pageCount } = viewer.toolbar;
+    const field = pageInput.parentElement;
+    const bubbled = jasmine.createSpy("wheel outside the page counter");
+    viewer.element.addEventListener("wheel", bubbled);
+    const wheel = (target, deltaY) => {
+      const event = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY });
+      target.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(pageInput.value).toBe(String(viewer.getCurrentPage()));
+    };
+    viewer.focus();
+    wheel(pageCount, 100);
+    expect(viewer.getCurrentPage()).toBe(2);
+    expect(document.activeElement).toBe(viewer.viewport);
+    pageInput.focus();
+    wheel(pageInput, 100);
+    expect(viewer.getCurrentPage()).toBe(3);
+    expect(document.activeElement).toBe(pageInput);
+    wheel(field, 100);
+    expect(viewer.getCurrentPage()).toBe(3);
+    wheel(pageInput, -0.5);
+    expect(viewer.getCurrentPage()).toBe(2);
+    wheel(pageCount, -100);
+    wheel(field, -100);
+    expect(viewer.getCurrentPage()).toBe(1);
+    expect(viewer.pdfViewer.currentScale).toBe(1);
+    expect(bubbled).not.toHaveBeenCalled();
+    viewer.element.removeEventListener("wheel", bubbled);
+
+    await viewer.destroy();
+    const navigate = spyOn(viewer, "goToPage");
+    const after = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 100 });
+    pageInput.dispatchEvent(after);
+    expect(after.defaultPrevented).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("merges PDF actions with the inherited split and close context actions", async () => {

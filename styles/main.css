@@ -69,6 +69,8 @@
 }
 
 .pdf-view .pdf-view-controls {
+  --zoom-button-background: var(--button-background-color);
+  --zoom-button-hover-background: var(--button-background-color-hover);
   position: absolute;
   top: 0;
   left: 0;
@@ -116,15 +118,34 @@
 }
 
 .pdf-view .pdf-view-controls .pdf-view-zoom-value[data-zoom-mode="page-fit"] {
-  background-color: color-mix(in srgb, var(--ui-site-color-2) 35%, var(--button-background-color));
+  --zoom-mode-color: var(--ui-site-color-2);
 }
 
 .pdf-view .pdf-view-controls .pdf-view-zoom-value[data-zoom-mode="page-width"] {
-  background-color: color-mix(in srgb, var(--ui-site-color-3) 35%, var(--button-background-color));
+  --zoom-mode-color: var(--ui-site-color-3);
 }
 
 .pdf-view .pdf-view-controls .pdf-view-zoom-value[data-zoom-mode="page-height"] {
-  background-color: color-mix(in srgb, var(--ui-site-color-4) 35%, var(--button-background-color));
+  --zoom-mode-color: var(--ui-site-color-4);
+}
+
+.pdf-view
+  .pdf-view-controls
+  .pdf-view-zoom-value:is(
+    [data-zoom-mode="page-fit"],
+    [data-zoom-mode="page-width"],
+    [data-zoom-mode="page-height"]
+  ) {
+  --button-background-color: color-mix(
+    in srgb,
+    var(--zoom-mode-color) 35%,
+    var(--zoom-button-background)
+  );
+  --button-background-color-hover: color-mix(
+    in srgb,
+    var(--zoom-mode-color) 35%,
+    var(--zoom-button-hover-background)
+  );
 }
 
 .pdf-view .pdf-view-controls .btn:disabled {
