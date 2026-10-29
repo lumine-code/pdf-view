@@ -241,9 +241,17 @@ describe("PDF scrolling", () => {
     wheel(20, 50);
     wheel(20, 50);
     expect(viewer.scrollAnimation.active).toBe(true);
+    expect(viewer.scrollAnimation.targetLeft).toBe(maxLeft);
+    expect(viewer.scrollAnimation.targetTop).toBe(maxTop);
     await viewer.scrollAnimation.promise;
-    expect(viewer.viewport.scrollLeft).toBe(maxLeft);
-    expect(viewer.viewport.scrollTop).toBe(maxTop);
+    // PDF.js can refine page layout during the animation. The final edge is
+    // the live scroll limit, including a smaller limit clamped by Chromium.
+    expect(viewer.viewport.scrollLeft).toBe(
+      viewer.viewport.scrollWidth - viewer.viewport.clientWidth,
+    );
+    expect(viewer.viewport.scrollTop).toBe(
+      viewer.viewport.scrollHeight - viewer.viewport.clientHeight,
+    );
   });
 
   it("retains fractional touchpad distances through a wheel burst", async () => {

@@ -43,12 +43,12 @@ function fixture(initialTime = 1000) {
       assert.ok(time >= now, "The test clock must move forwards");
       now = time;
     },
-    frame(time) {
+    frame(time, timestamp = time) {
       this.setTime(time);
       assert.equal(frames.size, 1, "Exactly one animation frame should be pending");
       const callbacks = [...frames.values()];
       frames.clear();
-      for (const callback of callbacks) callback(time);
+      for (const callback of callbacks) callback(timestamp);
     },
     get pendingFrames() {
       return frames.size;
@@ -128,4 +128,19 @@ test("cancellation resolves completion and clears the active animation", async (
   assert.equal(clock.view.pdfViewer.currentScale, interruptedScale);
   assert.equal(clock.refreshes, 1);
   assert.equal(completions, 0);
+});
+
+test("a frame timestamp preceding the input cannot reverse a zoom", async () => {
+  const clock = fixture();
+  const completion = clock.animation.to(1.1);
+  // RAF timestamps describe the frame's start, which can precede a later
+  // input's performance.now() even though the callback runs after that input.
+  clock.frame(1001, 999);
+  assert.equal(clock.view.pdfViewer.currentScale, 1);
+  assert.equal(clock.animation.active, true);
+  clock.frame(1030);
+  assert.ok(clock.view.pdfViewer.currentScale > 1);
+  assert.ok(clock.view.pdfViewer.currentScale < 1.1);
+  clock.frame(1150);
+  assert.equal(await completion, 1.1);
 });
