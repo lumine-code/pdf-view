@@ -28,7 +28,7 @@ describe("PDF viewer CSS role mapping", () => {
     }))
       document.documentElement.style.setProperty(`--${name}`, value);
     document.body.innerHTML =
-      '<button class="toolbarButton toggled">Toggle</button><label class="toggleButton"><input type="checkbox" checked>Option</label><input class="toolbarField"><div class="doorHanger">Menu</div><div class="treeView"><div class="treeItem selected"><a href="#item">Item</a></div></div>';
+      '<div id="outerContainer"><button class="toolbarButton toggled">Toggle</button><label class="toggleButton"><input type="checkbox" checked>Option</label><input class="toolbarField"><div class="doorHanger">Menu</div><div class="treeView"><div class="treeItem selected"><a href="#item">Item</a></div></div></div>';
   });
   afterEach(() => {
     // Removing a focused iframe can strand the top document's focus on CI.
@@ -38,7 +38,11 @@ describe("PDF viewer CSS role mapping", () => {
 
   it("keeps selected text and icon masks on their matching fill even when focused", () => {
     const button = document.querySelector("button");
+    document.querySelector(".toolbarField").focus();
     button.focus();
+    expect(button.matches(":focus-visible")).toBe(true);
+    expect(view.getComputedStyle(button).outlineStyle).toBe("solid");
+    expect(view.getComputedStyle(button).outlineColor).toBe("rgb(120, 130, 140)");
     expect(view.getComputedStyle(button).color).toBe("rgb(230, 240, 250)");
     expect(view.getComputedStyle(button).backgroundColor).toBe("rgb(40, 50, 60)");
     expect(view.getComputedStyle(button, "::before").backgroundColor).toBe("rgb(230, 240, 250)");

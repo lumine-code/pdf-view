@@ -65,6 +65,7 @@ textarea {
   --doorhanger-separator-color: var(--pane-item-border-color);
   --overlay-button-bg-color: var(--tab-background-color-active);
   --overlay-button-hover-bg-color: var(--background-color-highlight);
+  --focus-outline-color: var(--accent-indicator-color);
 }
 
 /* PDF.js declares its tree palette on .treeView, so a root-only mapping would
@@ -100,6 +101,11 @@ textarea {
   border-color: var(--accent-indicator-color);
 }
 
+.toolbarButton:focus-visible {
+  outline: var(--focus-ring-outline);
+  outline-offset: 2px;
+}
+
 #sidebarContent {
   background-color: var(--sidebar-narrow-bg-color);
   border-right: solid 1px var(--toolbar-border-color);
@@ -120,11 +126,6 @@ textarea {
   .thumbnailImageContainer > img {
     transition: none;
   }
-}
-
-/* Disable Chromium's default focus outline in the PDF view */
-#outerContainer :focus-visible {
-  outline: none !important;
 }
 
 /* Match the editor's always-visible scrollbar. This replaces the old
