@@ -1,62 +1,65 @@
 {
-  // Bindings apply while a PDF view (the `.pdf-view` item view, a wrapper
-  // around the PDF.js iframe) holds focus. Keystrokes captured inside the
-  // PDF.js document are redispatched onto the wrapper, so these fire whether
-  // focus is on the frame or its contents.
   ".pdf-view": {
-    "f5": "pdf-view:refresh",
-    "ctrl-f5": "pdf-view:toggle-refreshing",
-    "f12": "pdf-view:compile",
     "up": "pdf-view:scroll-up",
     "down": "pdf-view:scroll-down",
     "left": "pdf-view:scroll-left",
     "right": "pdf-view:scroll-right",
-    "pageup": "pdf-view:page-up",
-    "pagedown": "pdf-view:page-down",
+    "r": "pdf-view:refresh",
+    "f5": "pdf-view:refresh",
+    "pageup": "pdf-view:previous-page",
+    "pagedown": "pdf-view:next-page",
     "space": "pdf-view:page-down",
     "shift-space": "pdf-view:page-up",
-    // Core binds `backspace` at `body`, and a command event counts as handled
-    // even with no listener, so without this the key is swallowed before the
-    // iframe ever sees it. PDF.js turns a page on backspace only at page-fit
-    // zoom; scrolling unconditionally is the better behaviour.
-    "backspace": "pdf-view:page-up",
-    "shift-backspace": "pdf-view:page-up",
     "home": "pdf-view:first-page",
     "end": "pdf-view:last-page",
-    "enter": "pdf-view:next-page",
-    "shift-enter": "pdf-view:previous-page",
-    "n": "pdf-view:next-page",
-    "j": "pdf-view:next-page",
-    "p": "pdf-view:previous-page",
-    "k": "pdf-view:previous-page",
-    "cmdorctrl-=": "pdf-view:zoom-in",
-    "cmdorctrl-+": "pdf-view:zoom-in",
-    "cmdorctrl--": "pdf-view:zoom-out",
-    "cmdorctrl-0": "pdf-view:zoom-reset",
-    // Core binds all four of `cmdorctrl-=/+/-/_` at `body`; shadowing only
-    // three left Ctrl+Shift+Minus resizing the window font from inside a PDF.
-    "cmdorctrl-_": "pdf-view:zoom-out",
-    // PDF.js zooms on Ctrl alone, so the bare keys reach nothing and are free.
-    // `.image-editor` and `.graviss` spell the same four.
     "=": "pdf-view:zoom-in",
     "+": "pdf-view:zoom-in",
     "-": "pdf-view:zoom-out",
     "_": "pdf-view:zoom-out",
-    // The two fit presets a reader reaches for. `cmdorctrl-0` returns to
-    // automatic zoom, which is neither of them.
-    "f": "pdf-view:page-fit",
-    "w": "pdf-view:page-width",
-    "r": "pdf-view:rotate-clockwise",
-    "shift-r": "pdf-view:rotate-counterclockwise",
+    "0": "pdf-view:zoom-100",
+    "cmdorctrl-=": "pdf-view:zoom-next-level",
+    "cmdorctrl-+": "pdf-view:zoom-next-level",
+    "cmdorctrl--": "pdf-view:zoom-previous-level",
+    "cmdorctrl-_": "pdf-view:zoom-previous-level",
+    "cmdorctrl-0": "pdf-view:zoom-100",
+    "a": "pdf-view:automatic-zoom",
+    "f": "pdf-view:fit-to-view",
+    "w": "pdf-view:fit-width",
+    "]": "pdf-view:rotate-clockwise",
+    "[": "pdf-view:rotate-counterclockwise",
     "s": "pdf-view:select-tool",
     "h": "pdf-view:hand-tool",
-    "cmdorctrl-f": "pdf-view:find",
-    "cmdorctrl-g": "pdf-view:find-next",
-    "cmdorctrl-shift-g": "pdf-view:find-previous",
-    "g": "pdf-view:list",
-    "f4": "pdf-view:toggle-sidebar",
-    "cmdorctrl-k shift-p": "pdf-view:presentation-mode",
-    "cmdorctrl-s": "pdf-view:download",
     "cmdorctrl-c": "pdf-view:copy"
+  },
+  ".pdf-view .native-key-bindings": {
+    "up": "native!",
+    "down": "native!",
+    "left": "native!",
+    "right": "native!",
+    "r": "native!",
+    "pageup": "native!",
+    "pagedown": "native!",
+    "space": "native!",
+    "shift-space": "native!",
+    "home": "native!",
+    "end": "native!",
+    "=": "native!",
+    "+": "native!",
+    "-": "native!",
+    "_": "native!",
+    "cmdorctrl-=": "native!",
+    "cmdorctrl-+": "native!",
+    "cmdorctrl--": "native!",
+    "cmdorctrl-_": "native!",
+    "cmdorctrl-0": "native!",
+    "0": "native!",
+    "a": "native!",
+    "f": "native!",
+    "w": "native!",
+    "]": "native!",
+    "[": "native!",
+    "s": "native!",
+    "h": "native!",
+    "cmdorctrl-c": "native!"
   }
 }

@@ -1,41 +1,219 @@
-/* The item view (div.pdf-view) is sized by core's pane styles; the iframe
-   fills it. */
-.pdf-view-frame {
-  border: none;
-  display: block;
-  width: 100%;
-  height: 100%;
+.pdf-view {
+  --pdf-view-spacing: calc(var(--ui-spacing) / 2);
+  position: relative;
+  overflow: hidden;
+  background: var(--pane-item-background-color);
+  color: var(--text-color);
+  outline: none;
 }
 
-.pdf-view-scrollmap.simplemap .marker {
-  &.marker-pdf-h1 {
-    z-index: 15;
-    height: 4px;
-    background-color: var(--ui-site-color-1);
-  }
+.pdf-view .pdf-view-container {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  background-color: var(--app-background-color);
+}
 
-  &.marker-pdf-h2 {
-    z-index: 14;
-    height: 3px;
-    background-color: var(--ui-site-color-2);
-  }
+.pdf-view .pdfViewer .page {
+  --page-bg-color: white;
+  transition: filter 200ms ease-in-out;
+}
 
-  &.marker-pdf-h3 {
-    z-index: 13;
-    height: 3px;
-    background-color: var(--ui-site-color-3);
+@media (prefers-reduced-motion: reduce) {
+  .pdf-view .pdfViewer .page {
+    transition: none;
   }
+}
 
-  &.marker-pdf-h4 {
-    z-index: 12;
-    height: 2px;
-    background-color: var(--ui-site-color-4);
-  }
+.marker.marker-pdf-search {
+  background: var(--ui-site-color-2);
+  opacity: 1;
+  z-index: 16;
+}
+.marker.marker-pdf-h1 {
+  height: 4px;
+  background: var(--ui-site-color-1);
+  opacity: 1;
+  z-index: 15;
+}
+.marker.marker-pdf-h2 {
+  height: 3px;
+  background: var(--ui-site-color-2);
+  opacity: 1;
+  z-index: 14;
+}
+.marker.marker-pdf-h3 {
+  height: 3px;
+  background: var(--ui-site-color-3);
+  opacity: 1;
+  z-index: 13;
+}
+.marker.marker-pdf-h4 {
+  height: 2px;
+  background: var(--ui-site-color-4);
+  opacity: 1;
+  z-index: 12;
+}
+.marker.marker-pdf-h5,
+.marker.marker-pdf-h6 {
+  height: 2px;
+  background: var(--ui-site-color-5);
+  opacity: 1;
+  z-index: 11;
+}
 
-  &.marker-pdf-h5,
-  &.marker-pdf-h6 {
-    z-index: 11;
-    height: 2px;
-    background-color: var(--ui-site-color-5);
-  }
+.pdf-view.pdf-view-colors-inverted .pdfViewer .page {
+  filter: invert(1);
+}
+
+.pdf-view .pdf-view-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 var(--pdf-view-spacing) var(--pdf-view-spacing);
+  pointer-events: none;
+  user-select: none;
+}
+
+.pdf-view .pdf-view-controls-group.btn-group {
+  display: flex;
+  max-width: calc(100% - 40px);
+  overflow-x: auto;
+  margin: 0 var(--pdf-view-spacing) var(--pdf-view-spacing);
+  pointer-events: auto;
+  border-radius: 0 0 var(--ui-border-radius) var(--ui-border-radius);
+  /* Native disabled buttons blend into this surface, never the document. */
+  background: var(--tool-panel-background-color);
+}
+
+.pdf-view .pdf-view-controls-spacer {
+  flex: 0 0 20px;
+}
+
+.pdf-view .pdf-view-controls .btn:first-child {
+  border-top-left-radius: 0;
+}
+
+/* The pane header already draws the separator above these flush controls. */
+.pdf-view .pdf-view-controls-group.btn-group > .btn {
+  border-top: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-view .pdf-view-controls .btn:last-child {
+  border-top-right-radius: 0;
+}
+
+.pdf-view .pdf-view-controls .pdf-view-zoom-value {
+  min-width: 5em;
+}
+
+.pdf-view .pdf-view-controls .pdf-view-zoom-value[data-zoom-mode="page-fit"] {
+  background-color: color-mix(in srgb, var(--ui-site-color-2) 35%, var(--button-background-color));
+}
+
+.pdf-view .pdf-view-controls .pdf-view-zoom-value[data-zoom-mode="page-width"] {
+  background-color: color-mix(in srgb, var(--ui-site-color-3) 35%, var(--button-background-color));
+}
+
+.pdf-view .pdf-view-controls .pdf-view-zoom-value[data-zoom-mode="page-height"] {
+  background-color: color-mix(in srgb, var(--ui-site-color-4) 35%, var(--button-background-color));
+}
+
+.pdf-view .pdf-view-controls .btn:disabled {
+  cursor: default;
+}
+
+.pdf-view .pdf-view-page-field {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.pdf-view .pdf-view-page-input {
+  min-width: 2ch;
+  padding: 0;
+  border: none;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: center;
+}
+
+.pdf-view .pdf-view-page-input::-webkit-inner-spin-button,
+.pdf-view .pdf-view-page-input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.pdf-view .pdf-view-page-count {
+  color: var(--text-color-subtle);
+  font: inherit;
+}
+
+.pdf-view .pdf-view-status {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 40;
+  max-width: min(32em, 85%);
+  padding: var(--ui-spacing);
+  border-radius: var(--ui-border-radius);
+  color: var(--text-color-subtle);
+  background: var(--tool-panel-background-color);
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.pdf-view .pdf-view-status:empty,
+.pdf-view .pdf-view-status[hidden] {
+  display: none;
+}
+
+.pdf-view .pdf-view-password {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-content: center;
+  justify-content: center;
+  gap: var(--pdf-view-spacing);
+  padding: var(--ui-spacing);
+  background: color-mix(in srgb, var(--pane-item-background-color) 94%, transparent);
+}
+
+.pdf-view .pdf-view-password label {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+  gap: var(--pdf-view-spacing);
+  margin: 0;
+  text-align: center;
+}
+
+.pdf-view .pdf-view-password input {
+  width: min(24em, 70vw);
+  min-width: 0;
+}
+
+.pdf-view[data-tool="hand"] .pdf-view-container,
+.pdf-view[data-tool="hand"] .textLayer {
+  cursor: grab;
+}
+
+.pdf-view.is-panning .pdf-view-container,
+.pdf-view.is-panning .textLayer {
+  cursor: grabbing;
+  user-select: none;
 }

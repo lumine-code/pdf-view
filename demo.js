@@ -22,8 +22,10 @@ module.exports = {
           await lumine.workspace.paneForItem(state.editor).destroyItem(state.editor, true);
         }
       },
-      ready() {
-        return Boolean(document.querySelector(".pdf-view"));
+      ready({ state }) {
+        const viewer = state.document;
+        const page = viewer?.pdfViewer?.getPageView((viewer.getCurrentPage?.() || 1) - 1);
+        return Boolean(viewer?.pdfDocument && !viewer.loading && page?.renderingState === 3);
       },
     },
   ],

@@ -1,89 +1,312 @@
 {
-  // Application menu contributions. Each leaf uses the singular `command` key
-  // (Lumine's menu format), never CSON's plural `commands`.
   "menu": [
     {
       "label": "Packages",
       "submenu": [
         {
           "label": "PDF View",
+          "groupOrder": ["navigation", "display", "tools", "document", "extensions"],
           "submenu": [
-            { "label": "Reload Current PDF", "command": "pdf-view:refresh" },
-            { "label": "Save Copy", "command": "pdf-view:download" },
-            { "type": "separator" },
             {
-              "label": "Navigation",
+              "label": "Previous Page",
+              "command": "pdf-view:previous-page",
+              "group": "navigation",
+              "order": 10
+            },
+            {
+              "label": "Next Page",
+              "command": "pdf-view:next-page",
+              "group": "navigation",
+              "order": 20
+            },
+            {
+              "label": "First Page",
+              "command": "pdf-view:first-page",
+              "group": "navigation",
+              "order": 30
+            },
+            {
+              "label": "Last Page",
+              "command": "pdf-view:last-page",
+              "group": "navigation",
+              "order": 40
+            },
+            {
+              "label": "Scroll",
+              "group": "navigation",
+              "order": 50,
               "submenu": [
-                { "label": "Next Page", "command": "pdf-view:next-page" },
-                { "label": "Previous Page", "command": "pdf-view:previous-page" },
-                { "label": "First Page", "command": "pdf-view:first-page" },
-                { "label": "Last Page", "command": "pdf-view:last-page" }
+                {
+                  "label": "Scroll Up",
+                  "command": "pdf-view:scroll-up"
+                },
+                {
+                  "label": "Scroll Down",
+                  "command": "pdf-view:scroll-down"
+                },
+                {
+                  "label": "Scroll Left",
+                  "command": "pdf-view:scroll-left"
+                },
+                {
+                  "label": "Scroll Right",
+                  "command": "pdf-view:scroll-right"
+                },
+                {
+                  "label": "Scroll One Screen Up",
+                  "command": "pdf-view:page-up"
+                },
+                {
+                  "label": "Scroll One Screen Down",
+                  "command": "pdf-view:page-down"
+                }
               ]
             },
             {
-              "label": "Find",
+              "label": "Zoom",
+              "group": "display",
+              "order": 10,
               "submenu": [
-                { "label": "Find Text…", "command": "pdf-view:find" },
-                { "label": "Find Next Match", "command": "pdf-view:find-next" },
-                { "label": "Find Previous Match", "command": "pdf-view:find-previous" }
-              ]
+                {
+                  "label": "Zoom In",
+                  "command": "pdf-view:zoom-in",
+                  "group": "change",
+                  "order": 0
+                },
+                {
+                  "label": "Zoom Out",
+                  "command": "pdf-view:zoom-out",
+                  "group": "change",
+                  "order": 10
+                },
+                {
+                  "label": "Next Zoom Level",
+                  "command": "pdf-view:zoom-next-level",
+                  "group": "change",
+                  "order": 20
+                },
+                {
+                  "label": "Previous Zoom Level",
+                  "command": "pdf-view:zoom-previous-level",
+                  "group": "change",
+                  "order": 25
+                },
+                {
+                  "label": "Automatic Zoom",
+                  "command": "pdf-view:automatic-zoom",
+                  "group": "fit",
+                  "order": 20
+                },
+                {
+                  "label": "Fit Width",
+                  "command": "pdf-view:fit-width",
+                  "group": "fit",
+                  "order": 30
+                },
+                {
+                  "label": "Fit to View",
+                  "command": "pdf-view:fit-to-view",
+                  "group": "fit",
+                  "order": 40
+                },
+                {
+                  "label": "Zoom Levels",
+                  "group": "change",
+                  "order": 30,
+                  "groupOrder": ["lower", "higher"],
+                  "submenu": [
+                    {
+                      "label": "50%",
+                      "command": "pdf-view:set-zoom",
+                      "commandDetail": {
+                        "scale": 0.5
+                      },
+                      "group": "lower",
+                      "order": 0
+                    },
+                    {
+                      "label": "75%",
+                      "command": "pdf-view:set-zoom",
+                      "commandDetail": {
+                        "scale": 0.75
+                      },
+                      "group": "lower",
+                      "order": 1
+                    },
+                    {
+                      "label": "100%",
+                      "command": "pdf-view:zoom-100",
+                      "keyBindingLabel": "0",
+                      "group": "lower",
+                      "order": 2
+                    },
+                    {
+                      "label": "125%",
+                      "command": "pdf-view:set-zoom",
+                      "commandDetail": {
+                        "scale": 1.25
+                      },
+                      "group": "lower",
+                      "order": 3
+                    },
+                    {
+                      "label": "150%",
+                      "command": "pdf-view:set-zoom",
+                      "commandDetail": {
+                        "scale": 1.5
+                      },
+                      "group": "higher",
+                      "order": 4
+                    },
+                    {
+                      "label": "200%",
+                      "command": "pdf-view:set-zoom",
+                      "commandDetail": {
+                        "scale": 2
+                      },
+                      "group": "higher",
+                      "order": 5
+                    },
+                    {
+                      "label": "300%",
+                      "command": "pdf-view:set-zoom",
+                      "commandDetail": {
+                        "scale": 3
+                      },
+                      "group": "higher",
+                      "order": 6
+                    },
+                    {
+                      "label": "400%",
+                      "command": "pdf-view:set-zoom",
+                      "commandDetail": {
+                        "scale": 4
+                      },
+                      "group": "higher",
+                      "order": 7
+                    }
+                  ]
+                }
+              ],
+              "groupOrder": ["change", "fit"]
             },
-            { "type": "separator" },
             {
-              "label": "Display",
+              "label": "Rotate",
+              "group": "display",
+              "order": 20,
               "submenu": [
-                { "label": "Zoom In", "command": "pdf-view:zoom-in" },
-                { "label": "Zoom Out", "command": "pdf-view:zoom-out" },
-                { "label": "Use Automatic Zoom", "command": "pdf-view:zoom-reset" },
-                { "type": "separator" },
-                { "label": "Fit Page Width", "command": "pdf-view:page-width" },
-                { "label": "Fit Whole Page", "command": "pdf-view:page-fit" },
-                { "label": "Actual Size", "command": "pdf-view:page-actual" },
-                { "type": "separator" },
                 {
-                  "label": "Scrolling",
-                  "submenu": [
-                    { "label": "Vertical", "command": "pdf-view:scroll-mode-vertical" },
-                    { "label": "Horizontal", "command": "pdf-view:scroll-mode-horizontal" },
-                    { "label": "Wrapped", "command": "pdf-view:scroll-mode-wrapped" },
-                    { "label": "One Page at a Time", "command": "pdf-view:scroll-mode-page" }
-                  ]
+                  "label": "Rotate Clockwise",
+                  "command": "pdf-view:rotate-clockwise"
                 },
-                {
-                  "label": "Page Pairs",
-                  "submenu": [
-                    { "label": "Single Pages", "command": "pdf-view:spread-none" },
-                    { "label": "Odd Pages on Left", "command": "pdf-view:spread-odd" },
-                    { "label": "Even Pages on Left", "command": "pdf-view:spread-even" }
-                  ]
-                },
-                { "type": "separator" },
-                { "label": "Rotate Clockwise", "command": "pdf-view:rotate-clockwise" },
                 {
                   "label": "Rotate Counterclockwise",
                   "command": "pdf-view:rotate-counterclockwise"
-                },
-                { "label": "Toggle Thumbnails and Outline", "command": "pdf-view:toggle-sidebar" },
-                { "label": "Start Presentation", "command": "pdf-view:presentation-mode" }
+                }
               ]
             },
             {
-              "label": "Tools",
-              "submenu": [
-                { "label": "Select Text", "command": "pdf-view:select-tool" },
-                { "label": "Pan Pages", "command": "pdf-view:hand-tool" },
-                { "label": "Copy Selected Text", "command": "pdf-view:copy" }
-              ]
+              "label": "Select Text",
+              "command": "pdf-view:select-tool",
+              "group": "tools",
+              "order": 10
             },
-            { "type": "separator" },
-            { "label": "Compile Source", "command": "pdf-view:compile" },
-            { "label": "Open Source", "command": "pdf-view:open-tex" },
-            { "type": "separator" },
-            { "label": "Toggle Automatic Reload", "command": "pdf-view:toggle-refreshing" },
-            { "label": "Reload All Open PDFs", "command": "pdf-view:reload-all" }
+            {
+              "label": "Pan Pages",
+              "command": "pdf-view:hand-tool",
+              "group": "tools",
+              "order": 20
+            },
+            {
+              "label": "Copy Selected Text",
+              "command": "pdf-view:copy",
+              "group": "tools",
+              "order": 30
+            },
+            {
+              "label": "SyncTeX: Open Source at Position",
+              "command": "pdf-view:synctex",
+              "group": "document",
+              "order": 10
+            },
+            {
+              "label": "Reload PDF",
+              "command": "pdf-view:refresh",
+              "group": "document",
+              "order": 20
+            }
           ]
         }
       ]
     }
-  ]
+  ],
+  "context-menu": {
+    ".pdf-view": {
+      "groupOrder": [
+        "clipboard",
+        "source",
+        "document",
+        "display",
+        "views",
+        "layout",
+        "extensions",
+        "close"
+      ],
+      "items": [
+        {
+          "label": "Copy Text",
+          "command": "pdf-view:copy",
+          "group": "clipboard",
+          "order": 10
+        },
+        {
+          "label": "SyncTeX: Open Source Here",
+          "command": "pdf-view:synctex",
+          "group": "source",
+          "order": 10
+        },
+        {
+          "label": "Reload PDF",
+          "command": "pdf-view:refresh",
+          "group": "document",
+          "order": 10
+        },
+        {
+          "label": "Scroll",
+          "group": "display",
+          "order": 0,
+          "submenu": [
+            { "label": "Scroll Up", "command": "pdf-view:scroll-up" },
+            { "label": "Scroll Down", "command": "pdf-view:scroll-down" },
+            { "label": "Scroll Left", "command": "pdf-view:scroll-left" },
+            { "label": "Scroll Right", "command": "pdf-view:scroll-right" }
+          ]
+        },
+        {
+          "label": "Fit Width",
+          "command": "pdf-view:fit-width",
+          "group": "display",
+          "order": 10
+        },
+        {
+          "label": "Fit to View",
+          "command": "pdf-view:fit-to-view",
+          "group": "display",
+          "order": 20
+        },
+        {
+          "label": "Rotate Clockwise",
+          "command": "pdf-view:rotate-clockwise",
+          "group": "display",
+          "order": 30
+        },
+        {
+          "label": "Rotate Counterclockwise",
+          "command": "pdf-view:rotate-counterclockwise",
+          "group": "display",
+          "order": 40
+        }
+      ]
+    }
+  }
 }

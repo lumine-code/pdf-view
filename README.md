@@ -2,19 +2,19 @@
 
 View PDF files directly in the editor.
 
-Built on Mozilla's PDF.js with theme integration, SyncTeX support, and a document outline.
+Built on Mozilla's PDF.js with native controls, document search and outline navigation.
 
 ## Features
 
-- **PDF.js viewer**: renders pdf files in editor panes with Mozilla's PDF.js.
-- **Theme integration**: mirrors the active Lumine UI and syntax theme colors into the viewer.
-- **Auto-reload**: watches the file on disk and preserves the page, zoom, rotation, and scroll position when refreshing.
-- **LaTeX and Typst**: compiles `.tex` and `.typ` sources and follows SyncTeX jumps when the matching tools packages are installed.
-- **Build coordination**: pauses auto-refresh during a compile and reloads once the build finishes.
-- **Document outline**: searches headings in a picker, exposes the pdf outline to the navigation panel, and tracks the active section while scrolling.
-- **Scrollmap**: draws outline markers on the scrollbar when the scrollmap package is available.
-
-![Read a generated signal report in the PDF viewer.](.github/demo.png)
+- **Native controls**: compact viewing controls follow the active theme, with smooth panning and a themed preview background.
+- **Zoom**: fits width up to 100%, offers preset levels in the zoom value's context menu and animates zoom changes smoothly.
+- **PDF.js components**: renders selectable text, links and existing annotations without an iframe or the generic viewer application.
+- **Navigation**: supplies bookmarks and current-section information to the navigation panel.
+- **Search**: supplies read-only document search to the search panel.
+- **Scrollmap**: shows outline headings and matching pages through the shared overview widget, with only top-level headings shown by default.
+- **SyncTeX**: opens the corresponding source position from the context menu when a LaTeX service is available.
+- **Auto-reload**: watches the file on disk, preserves the current view when refreshing and pauses reloads during LaTeX or Typst builds.
+- **Large documents**: reads disk ranges on demand, limits page canvases and leaves page rendering to PDF.js's rendering queue.
 
 ## Installation
 
@@ -24,95 +24,68 @@ To install `pdf-view` search for it in the Install pane of the Lumine settings, 
 
 Commands available in `.pdf-view`:
 
-- `pdf-view:list`: search the document outline and jump to a heading,
-- `pdf-view:refresh`: refresh content for the current viewer,
-- `pdf-view:toggle-refreshing`: toggle auto-refresh for the current viewer,
-- `pdf-view:compile`: compile the source `.typ` or `.tex` file,
-- `pdf-view:open-tex`: open the corresponding `.typ` or `.tex` source file,
-- `pdf-view:next-page`: go to the next page,
 - `pdf-view:previous-page`: go to the previous page,
+- `pdf-view:next-page`: go to the next page,
 - `pdf-view:first-page`: go to the first page,
 - `pdf-view:last-page`: go to the last page,
-- `pdf-view:scroll-up`: scroll up,
-- `pdf-view:scroll-down`: scroll down,
-- `pdf-view:scroll-left`: scroll left,
-- `pdf-view:scroll-right`: scroll right,
-- `pdf-view:page-up`: scroll up by one viewport,
-- `pdf-view:page-down`: scroll down by one viewport,
-- `pdf-view:zoom-in`: zoom in,
-- `pdf-view:zoom-out`: zoom out,
-- `pdf-view:zoom-reset`: reset zoom,
-- `pdf-view:page-width`: fit the page width to the viewer,
-- `pdf-view:page-fit`: fit the whole page in the viewer,
-- `pdf-view:page-actual`: show the page at its actual size,
-- `pdf-view:scroll-mode-vertical`: scroll pages vertically,
-- `pdf-view:scroll-mode-horizontal`: scroll pages horizontally,
-- `pdf-view:scroll-mode-wrapped`: scroll pages wrapped,
-- `pdf-view:scroll-mode-page`: scroll one page at a time,
-- `pdf-view:spread-none`: show single pages,
-- `pdf-view:spread-odd`: show spreads starting on odd pages,
-- `pdf-view:spread-even`: show spreads starting on even pages,
+- `pdf-view:zoom-in`: zoom in smoothly,
+- `pdf-view:zoom-out`: zoom out smoothly,
+- `pdf-view:zoom-next-level`: increase zoom to the next preset level,
+- `pdf-view:zoom-previous-level`: decrease zoom to the previous preset level,
+- `pdf-view:automatic-zoom`: fit the page width up to 100%,
+- `pdf-view:fit-width`: fit the page width to the viewer,
+- `pdf-view:fit-to-view`: fit the whole page in the viewer,
+- `pdf-view:zoom-100`: show the page at 100%,
 - `pdf-view:rotate-clockwise`: rotate clockwise,
 - `pdf-view:rotate-counterclockwise`: rotate counterclockwise,
-- `pdf-view:select-tool`: enable the text selection tool,
-- `pdf-view:hand-tool`: enable the hand tool,
-- `pdf-view:find`: open find,
-- `pdf-view:find-next`: find next match,
-- `pdf-view:find-previous`: find previous match,
-- `pdf-view:copy`: copy the selected text to the clipboard,
-- `pdf-view:toggle-sidebar`: toggle the PDF sidebar,
-- `pdf-view:presentation-mode`: enter presentation mode,
-- `pdf-view:download`: download the PDF.
+- `pdf-view:select-tool`: enable text selection,
+- `pdf-view:hand-tool`: enable dragging to pan,
+- `pdf-view:scroll-up`: scroll up smoothly,
+- `pdf-view:scroll-down`: scroll down smoothly,
+- `pdf-view:scroll-left`: scroll left smoothly,
+- `pdf-view:scroll-right`: scroll right smoothly,
+- `pdf-view:page-up`: scroll up by one viewport,
+- `pdf-view:page-down`: scroll down by one viewport,
+- `pdf-view:refresh`: reload the PDF and preserve the current view,
+- `pdf-view:copy`: copy selected text,
+- `pdf-view:synctex`: open the source at the clicked PDF position.
 
-Commands available in `lumine-workspace`:
+## Usage
 
-- `pdf-view:reload-all`: reload all open PDF views.
+PDF panes and split copies work within the current native window. Moving a PDF pane between native windows is not supported.
 
-## Style
+Opening another PDF in a pending preview reuses its pane item and native controls. The replacement is prepared before the displayed document changes; keeping the tab, closing it or starting another opening cancels an unfinished replacement.
 
-The viewer adapts its colors to the active Lumine theme. When the theme changes, the viewer's menu and chrome colors update to match.
+## Customization
 
-## Document outline
+Adjust the viewer background in your stylesheet:
 
-The viewer exposes its document outline through the `navigation.adapter` service, so a navigation panel can search the outline tree instead of the built-in PDF.js outline. Scroll position is tracked and the active section is highlighted in the panel.
-
-## Pending previews
-
-Opening another PDF in a pending tab reuses an initialized viewer and its iframe. The new PDF starts at its URI destination with the configured default zoom, and the viewer resets navigation and build state. Encrypted PDFs use a new viewer so PDF.js can show its password dialog. A failed or cancelled replacement leaves the previous PDF open.
-
-## URI options
-
-The viewer accepts additional options when opening a PDF: open on a specific page, set the initial zoom level, jump to a named destination, or choose a sidebar state. For more information, see [pdf.js viewer options](https://github.com/mozilla/pdf.js/wiki/Viewer-options).
-
-## LaTeX
-
-With a `latex-tools` package installed, the viewer integrates compilation and SyncTeX support:
-
-- **Compile**: compile the corresponding `.tex` file directly from the viewer.
-- **Forward SyncTeX** (source → PDF): triggered from the editor.
-- **Backward SyncTeX** (PDF → source): right-click a location in the PDF.
-- **Build coordination**: auto-refresh pauses during compilation and resumes when the build finishes.
-
-For PDF files created by TeX using the `--synctex=1` option, clicking on the PDF jumps to the corresponding source code.
-
-## Typst
-
-With a `typst-tools` package installed, the viewer integrates Typst compilation:
-
-- **Compile**: compile the corresponding `.typ` file directly from the viewer.
-- **Open source**: use `pdf-view:open-tex` to open the `.typ` source file.
-- **Build coordination**: auto-refresh pauses during compilation and resumes when the build finishes.
-
-When both `.typ` and `.tex` source files exist, the Typst source takes priority.
+```css
+.pdf-view .pdf-view-container {
+  background-color: var(--pane-item-background-color);
+}
+```
 
 ## Services
 
-- [`pdf-view`](docs/pdf-view.md): provided to let other packages manage PDF views programmatically — observe viewer instances, open PDFs in a split, look them up by path or tag, scroll to named destinations, and swap a viewer's file.
-- `navigation.adapter`: provided to expose the PDF document outline to a navigation panel, following the `handlesItem` / `observeHeaders` / `navigateTo` protocol.
-- `invert-colors.provider`: provided to invert PDF pages through an explicit display target.
-- `latex-tools`: consumed to compile `.tex` sources and resolve SyncTeX positions for backward search.
-- `typst-tools`: consumed to compile `.typ` sources.
-- `scrollmap.widget`: consumed to draw PDF outline markers on the scrollbar.
+- [`pdf-view`](docs/pdf-view.md): provided to open PDF panes and navigate their documents.
+- `navigation.adapter`: provided to expose bookmarks through the navigation panel.
+- `search.adapter`: provided to search the PDF through the search panel.
+- `invert-colors.provider`: provided to invert document pages without changing the controls.
+- `scrollmap.widget`: consumed to draw document and search markers beside the native scrollbar.
+- `latex-tools`: consumed for SyncTeX and build coordination.
+- `typst-tools`: consumed for build coordination.
+- `background-tips.provider`: provided to describe PDF viewing in the empty workspace.
+
+## Development
+
+Run `npm install --ignore-scripts` inside this directory. Tests live in `spec/`: run `node scripts/test.js` for the isolated Lumine integration specs and `npm run test:unit` for the Node unit tests in `spec/unit/`. The test launcher uses the sibling editor source or `LUMINE_RESOURCE_PATH` and an isolated profile.
+
+Run `node scripts/preview.js "C:/path/to/document.pdf"` to open an isolated preview with the local navigation, search and build-service packages. The preview uses `.dev/preview-home` and does not change the normal development profile.
+
+## Performance
+
+Set `PDF_VIEW_BENCH_FILE` to the absolute path of a local PDF and run `node scripts/test.js spec/performance-spec.js`. `PDF_VIEW_BENCH_OUTPUT` optionally selects the JSON report path; the default is `.dev/performance.json`. Reports contain timings, byte counts, page counts and memory usage without the document path, contents or query. The supplied test document stays outside this repository.
 
 ## Contributing
 

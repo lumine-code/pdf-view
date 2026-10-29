@@ -1,25 +1,21 @@
 # pdf-view
 
-Drives PDF views from another package: observe them, open one, look one up, scroll it to a named destination, or swap its file.
+Open or reuse a PDF pane, navigate to a destination and preserve the reader's zoom through one awaited operation.
 
 |             |                                                       |
 | ----------- | ----------------------------------------------------- |
-| Version     | `1.0.0`                                               |
-| Provided by | `providePdfView()` returning the viewer API           |
+| Version     | `2.0.0`                                               |
+| Provided by | `providePdfView()` returning the PDF service          |
 | Consumed by | `consumePdfView(pdfView)`                             |
 | Owner       | [`pdf-view`](https://github.com/lumine-code/pdf-view) |
 
-Built for build tools: a LaTeX or Typst package compiles a document and needs the resulting PDF opened beside the source, kept in the same pane on recompile, and scrolled to the line the user was editing.
-
 ## Registration
-
-In your `package.json`:
 
 ```json
 {
   "consumedServices": {
     "pdf-view": {
-      "versions": { "^1.0.0": "consumePdfView" }
+      "versions": { "^2.0.0": "consumePdfView" }
     }
   }
 }
@@ -29,34 +25,34 @@ In your `package.json`:
 
 ```ts
 type PdfView = {
-  hasIntegratedScrollmap: boolean;
-  getViewers(): Set<Viewer>;
-  observeViewers(callback: (viewer: Viewer) => void): Disposable;
-  getViewerByPath(filePath: string): Viewer | null;
-  getViewerByTag(tag: string): Viewer | null;
-  open(filePath: string, options?: OpenOptions): Promise<Viewer>;
-  scrollToDestination(viewer: Viewer, dest: string): void;
-  setFile(viewer: Viewer, filePath: string, dest?: string, tag?: string): void;
+  readonly openerId: string;
+  open(filePath: string, options?: OpenOptions): Promise<Viewer | null>;
 };
 
 type OpenOptions = {
-  dest?: string;
   tag?: string;
+  reuse?: boolean;
+  dest?: string;
+  destinationMode?: "destination" | "page";
+  pane?: Pane;
   split?: "left" | "right" | "up" | "down";
   activatePane?: boolean;
+  pending?: boolean;
+  signal?: AbortSignal;
 };
 ```
 
-| Member                                 | Description                                                                                               |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `hasIntegratedScrollmap`               | `true` when the viewer draws its own scrollbar overview, so a scrollmap layer should stay out of its way. |
-| `getViewers()`                         | Every open viewer.                                                                                        |
-| `observeViewers(cb)`                   | Calls back for each existing viewer **and** each new one.                                                 |
-| `getViewerByPath(path)`                | The viewer showing that file, or `null`.                                                                  |
-| `getViewerByTag(tag)`                  | The viewer whose hash contains that tag, or `null`.                                                       |
-| `open(filePath, options)`              | Opens the PDF. `split` defaults to `"right"` and `activatePane` to `false`.                               |
-| `scrollToDestination(viewer, dest)`    | Scrolls an open viewer to a named destination.                                                            |
-| `setFile(viewer, filePath, dest, tag)` | Points an existing viewer at a different file, keeping its pane.                                          |
+| Optional field    | Behavior                                                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tag`             | Identifies a reusable pane owned by the integration, independently of its current file. Use a stable name specific to the consumer.                                                 |
+| `reuse`           | Defaults to `true`. Reuses the tagged viewer when a tag is supplied, otherwise a viewer of the same file. `false` creates an independent viewer without assigning the reusable tag. |
+| `dest`            | Named PDF destination. Omit it to keep the existing position in the same file, or open a replacement file at its beginning.                                                         |
+| `destinationMode` | `"destination"` follows the destination's coordinates; `"page"` opens the top of its containing page. Both retain the user's zoom. Defaults to `"destination"`.                     |
+| `pane`            | Anchor pane captured by the caller. A reused viewer remains in its own pane.                                                                                                        |
+| `split`           | Placement of a new viewer relative to the anchor. Defaults to `"right"` without an explicit pane; an explicit pane is used directly unless a split is requested.                    |
+| `activatePane`    | Defaults to `false`. The requested tab becomes visible in its pane while source focus remains in place. `true` activates the PDF pane.                                              |
+| `pending`         | Opens a new viewer as a pending item when the editor allows it.                                                                                                                     |
+| `signal`          | Cancels the request with its abort reason. An unpresented viewer is disposed; an existing tab remains open.                                                                         |
 
 ## Minimal example
 
@@ -64,35 +60,42 @@ type OpenOptions = {
 const { Disposable } = require("lumine");
 
 module.exports = {
-  consumePdfView(pdfView) {
-    this.pdfView = pdfView;
-    return new Disposable(() => (this.pdfView = null));
+  consumePdfView(service) {
+    this.pdfView = service;
+    return new Disposable(() => {
+      if (this.pdfView === service) this.pdfView = null;
+    });
   },
 
-  async showOutput(pdfPath) {
-    const existing = this.pdfView?.getViewerByTag("my-build");
-    if (existing) return this.pdfView.setFile(existing, pdfPath, null, "my-build");
-    return this.pdfView?.open(pdfPath, { tag: "my-build", split: "right" });
+  async showHelp(filePath, destination) {
+    if (!this.pdfView) throw new Error("A PDF viewing service is required.");
+    return this.pdfView.open(filePath, {
+      tag: "my-package:help",
+      dest: destination,
+      destinationMode: "page",
+      split: "right",
+      activatePane: false,
+    });
   },
 };
 ```
 
 ## Behavior
 
-**Tag your viewers.** A `tag` is written into the URI hash and is how you find the same viewer again after a rebuild. Without one, `getViewerByPath` is the only handle — and it fails as soon as the output path changes.
+The service owns lookup, creation, replacement, readiness, navigation and tab presentation. Callers do not search viewers, change their files or reveal their URIs separately. PDF destinations and integration tags are service arguments; callers must not encode integration metadata into a workspace opening or a file URI.
 
-Prefer `setFile` over closing and reopening when the output path changes. It keeps the pane and opens the requested destination in the new file. Refreshing the same file preserves the page, zoom, rotation, and scroll position.
+`openerId` identifies the provider's registered workspace path opener. A consumer offering an opener picker can use this public ID for a request-scoped opening override and invoke `open` with its own destination options when the PDF choice is selected. This avoids depending on a package name or replacing the opener globally. The viewing service currently supports help opening in the current native window.
 
-`open` defaults to `activatePane: false`, which is correct for a build tool: the PDF appears without stealing focus from the source. It searches all panes for the same URI, including its destination and tag. To navigate an existing viewer to another destination, use `scrollToDestination` rather than another `open` call.
+Changing the file in a tagged viewer keeps the user's zoom mode or percentage and rotation. An identical file is not reloaded, and a request without a destination retains its position. Internal PDF links remain normal destination links. Standard PDF file URLs can still carry native PDF fragments when opened by the workspace.
 
-`observeViewers` replays for existing viewers, so a package activating after a PDF is open still sees it.
+The returned promise settles after placement, document readiness and requested navigation. It returns the live viewer, or `null` when the provider retires, the chosen pane closes or a newer request supersedes this request for the same viewer. Loading and current navigation failures reject. Cancellation rejects with the signal's reason. Overlapping requests for one tag share the initial pane placement; the latest request determines its document and destination.
 
-Read `hasIntegratedScrollmap` before drawing your own scrollbar decorations on a viewer.
+Reusable tags are saved in the pane item's session state and restored with it. A user-created split copy is independent and does not inherit the integration's tag. The item URI continues to identify the source file.
 
 ## Teardown
 
-Return a `Disposable` that drops your reference and disposes any `observeViewers` subscription. **Do not destroy viewers you did not open** — and think twice about destroying ones you did, since the user may still be reading them.
+The consumer drops its service reference when the provider edge is disposed. Service consumption is passive; it does not activate a named implementation. An unavailable service should be handled through the consumer's normal error channel. A retained service from a retired provider returns `null` and cannot create viewers in a later package generation.
 
 ## Versioning
 
-`1.0.0` provided, `^1.0.0` consumed. A change that breaks this shape gets a new service name rather than a new major version, and both sides move in the same release.
+`2.0.0` is provided and `^2.0.0` consumed. This replaces the version 1 lookup, mutation and observation API with one opening operation. Viewer observation used by other PDF-owned adapters remains an internal provider concern.

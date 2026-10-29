@@ -8,9 +8,7 @@ const runtimeModules = ["lumine"];
 
 module.exports = [
   {
-    // Upstream PDF.js is generated code. The embedding adapter lives in lib
-    // and is checked with the rest of the package.
-    ignores: ["node_modules/**", "vendors/**", ".dev/**", "demo/**"],
+    ignores: ["node_modules/**", ".dev/**", "demo/**"],
   },
   js.configs.recommended,
   n.configs["flat/recommended-script"],
@@ -41,12 +39,7 @@ module.exports = [
     },
   },
   {
-    files: ["lib/pdfjs/**"],
-    languageOptions: { sourceType: "script" },
-  },
-  {
-    // Dev tooling (this config, the manual update script) legitimately requires
-    // devDependencies and may call process.exit; it is never shipped as runtime.
+    // Development scripts may use devDependencies and process.exit.
     files: ["eslint.config.js", "scripts/**"],
     rules: {
       "n/no-process-exit": "off",
@@ -57,7 +50,9 @@ module.exports = [
   {
     // Specs run in the Lumine jasmine runner and require devDependencies.
     files: ["spec/**", "**/*-spec.js"],
-    languageOptions: { globals: { ...globals.jasmine } },
+    languageOptions: {
+      globals: { ...globals.jasmine, conditionPromise: "readonly", flushMicrotasks: "readonly" },
+    },
     rules: {
       "n/no-missing-require": "off",
       "n/no-unpublished-require": "off",

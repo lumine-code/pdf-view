@@ -1,138 +1,188 @@
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-const { pathToFileURL } = require("url");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { Emitter, CompositeDisposable } = require("lumine");
 const { createPdf } = require("./helpers/pdf-fixture");
 
-describe("pdf-view lifecycle", () => {
-  let main, directory;
+describe("PDF viewer ownership and service lifetimes", () => {
+  let main, directory, file, subscriptions, observations;
 
   beforeEach(async () => {
     jasmine.useRealClock();
-    directory = null;
-    await lumine.packages.deactivatePackage("pdf-view");
-    const pack = lumine.packages.loadPackage("pdf-view");
-    pack.requireMainModule();
-    main = pack.mainModule;
-    main.deactivate();
+    directory = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-native-lifetime-"));
+    file = path.join(directory, "document.pdf");
+    fs.writeFileSync(file, createPdf({ pages: 3 }));
+    subscriptions = new CompositeDisposable();
+    observations = new Set();
+    main = (await lumine.packages.activatePackage("pdf-view")).mainModule;
+    lumine.config.set("pdf-view.autoRefresh", false);
+    jasmine.attachToDOM(lumine.workspace.getElement());
   });
 
   afterEach(async () => {
-    const observations = Array.from(main.viewers || [], (viewer) => viewer.file);
-    main.deactivate();
-    await Promise.all(observations.map((observation) => observation.closed));
-    if (directory) {
-      fs.rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    subscriptions.dispose();
+    await lumine.packages.deactivatePackage("pdf-view");
+    await Promise.all([...observations].map((observation) => observation.closed));
+    const parent = path.resolve(os.tmpdir());
+    const relative = path.relative(parent, path.resolve(directory));
+    if (
+      !relative ||
+      path.isAbsolute(relative) ||
+      relative === ".." ||
+      relative.startsWith(`..${path.sep}`)
+    ) {
+      throw new Error("Unsafe PDF lifecycle fixture cleanup");
     }
+    fs.rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
-  it("restores a viewer without publishing the active scope", () => {
-    const restored = { restored: true };
-    spyOn(main, "createViewer").and.returnValue(restored);
+  function createViewer() {
+    const viewer = main.createViewer(file);
+    observations.add(viewer.fileObservation);
+    return viewer;
+  }
 
-    const result = main.deserialize({ filePath: __filename, hash: "#page=2" });
-
-    expect(result).toBe(restored);
-    expect(main.createViewer).toHaveBeenCalledWith(__filename, "#page=2", undefined);
-    expect(main.active).toBeFalsy();
-    expect(main.disposables).toBeNull();
-  });
-
-  it("opens a file URI with a named-destination fragment", async () => {
-    const filePath = path.join(__dirname, "manual.pdf");
-    const uri = pathToFileURL(filePath);
-    uri.hash = "nameddest=MAT";
-    const viewer = { viewer: true };
-    spyOn(main, "createViewer").and.returnValue(viewer);
-    main.activate();
-
-    const result = await lumine.workspace.createItemForURI(uri.href);
-
-    expect(result).toBe(viewer);
-    expect(main.createViewer).toHaveBeenCalledWith(filePath, "#nameddest=MAT");
-  });
-
-  it("preserves a file URI fragment supplied with its normalized path", async () => {
-    const filePath = path.join(__dirname, "manual.pdf");
-    const viewer = { viewer: true };
-    spyOn(main, "createViewer").and.returnValue(viewer);
-    main.activate();
-
-    expect(await lumine.workspace.createItemForURI(filePath, { uriFragment: "#page=3" })).toBe(
-      viewer,
-    );
-    expect(main.createViewer).toHaveBeenCalledWith(filePath, "#page=3");
-  });
-
-  it("allows an explicit fragment to override a raw path destination", async () => {
-    const filePath = path.join(__dirname, "manual.pdf");
-    const viewer = { viewer: true };
-    spyOn(main, "createViewer").and.returnValue(viewer);
-    main.activate();
-
-    expect(
-      await lumine.workspace.createItemForURI(`${filePath}#page=2`, { uriFragment: "#page=3" }),
-    ).toBe(viewer);
-    expect(main.createViewer).toHaveBeenCalledWith(filePath, "#page=3");
-  });
-
-  it("reuses matching file URL destinations and keeps distinct destination viewers", async () => {
-    directory = fs.realpathSync(
-      fs.mkdtempSync(path.join(os.tmpdir(), "pdf-view-url-destination-")),
-    );
-    const filePath = path.join(directory, "document.pdf");
-    fs.writeFileSync(filePath, createPdf({ pages: 3 }));
-    const uri = pathToFileURL(filePath);
-    main.activate();
-
-    uri.hash = "page=2";
-    const secondPage = await lumine.workspace.open(uri.href);
-    expect(secondPage.getURI()).toBe(`${filePath}#page=2`);
-    expect(await lumine.workspace.open(uri.href)).toBe(secondPage);
-
-    uri.hash = "page=3";
-    const thirdPage = await lumine.workspace.open(uri.href);
-    expect(thirdPage).not.toBe(secondPage);
-    expect(thirdPage.getURI()).toBe(`${filePath}#page=3`);
-    expect(await lumine.workspace.open(`${filePath}#page=3`)).toBe(thirdPage);
-    expect(await lumine.workspace.open(uri.href, { opener: "pdf-view" })).toBe(thirdPage);
-  });
-
-  it("keeps pane copies in the package lifecycle and services", async () => {
-    directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pdf-view-copy-")));
-    const filePath = path.join(directory, "document.pdf");
-    fs.writeFileSync(filePath, createPdf({ pages: 2 }));
-    main.initialize();
-    const service = main.providePdfView();
-    const observed = [];
-    const observer = service.observeViewers((viewer) => observed.push(viewer));
-    const scrollmap = {
-      addViewer: jasmine.createSpy("addViewer"),
-      removeViewer: jasmine.createSpy("removeViewer"),
-      destroy: jasmine.createSpy("destroy"),
+  function buildService() {
+    const emitter = new Emitter();
+    subscriptions.add(emitter);
+    return {
+      onDidStartBuild: (callback) => emitter.on("start", callback),
+      onDidFinishBuild: (callback) => emitter.on("finish", callback),
+      onDidFailBuild: (callback) => emitter.on("fail", callback),
+      start: (source) => emitter.emit("start", { file: source }),
+      finish: (source) => emitter.emit("finish", { file: source }),
     };
-    main.outlineScrollmap = scrollmap;
-    main.latexTools = { latex: true };
-    main.typstTools = { typst: true };
-    const original = main.createViewer(filePath, "#page=2&build-output");
+  }
 
-    const copy = original.copy();
+  it("restores the page, zoom and rotation saved by the previous iframe viewer", async () => {
+    const viewer = main.deserialize({
+      filePath: file,
+      hash: "",
+      viewState: { page: 2, zoom: "1.25", rotation: 90, left: 15, top: 30 },
+    });
+    observations.add(viewer.fileObservation);
+    viewer.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
+    await lumine.workspace.open(viewer);
+    await viewer.whenReady();
+    expect(viewer.getCurrentPage()).toBe(2);
+    expect(viewer.pdfViewer.currentScale).toBeCloseTo(1.25, 5);
+    expect(viewer.pdfViewer.pagesRotation).toBe(90);
+    expect(viewer.element.querySelector("iframe")).toBeNull();
+  });
 
+  it("tracks a split copy in commands, adapters, viewer observers and package teardown", async () => {
+    const original = createViewer();
+    original.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
+    await lumine.workspace.open(original);
+    await original.whenReady();
+    original.goToPage(2);
+    original.setScale(1.25);
+    const observed = jasmine.createSpy("observe viewers");
+    const viewers = main.viewers;
+    subscriptions.add(main.observeViewers(observed));
+    const result = await lumine.workspace.copyPaneItem(original, { splitDirection: "right" });
+    const copy = result.item;
+    observations.add(copy.fileObservation);
+    copy.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
+    copy.layoutChanged();
+    await copy.whenReady();
     expect(copy).not.toBe(original);
-    expect(copy.hash).toBe("#page=2");
-    expect(service.getViewers().has(copy)).toBe(true);
-    expect(observed).toEqual([original, copy]);
-    expect(scrollmap.addViewer).toHaveBeenCalledWith(copy);
-    expect(copy.getLatexTools()).toBe(main.latexTools);
-    expect(copy.getTypstTools()).toBe(main.typstTools);
-    expect(typeof copy.requestLatexTools).toBe("function");
-    expect(typeof copy.requestTypstTools).toBe("function");
+    expect(copy.pdfDocument).not.toBe(original.pdfDocument);
+    expect(copy.getCurrentPage()).toBe(2);
+    expect(copy.pdfViewer.currentScale).toBeCloseTo(1.25, 2);
+    expect(viewers.has(copy)).toBe(true);
+    expect(observed).toHaveBeenCalledWith(copy);
+    expect(main.viewerForTarget(copy.viewport)).toBe(copy);
+    expect(main.provideNavigationAdapter().handlesItem(copy)).toBe(true);
+    expect(main.provideSearchAdapter().handlesItem(copy)).toBe(true);
+    expect(copy.getLatexTools).toEqual(jasmine.any(Function));
+    await lumine.packages.deactivatePackage("pdf-view");
+    expect(copy.destroyed).toBe(true);
+    expect(viewers.size).toBe(0);
+  });
 
-    const observation = copy.file;
-    copy.destroy();
-    await observation.closed;
-    expect(service.getViewers().has(copy)).toBe(false);
-    expect(scrollmap.removeViewer).toHaveBeenCalledWith(copy);
-    observer.dispose();
+  for (const [consume, getter, extension] of [
+    ["consumeLatexTools", "getLatexTools", ".tex"],
+    ["consumeTypstTools", "getTypstTools", ".typ"],
+  ]) {
+    it(`keeps ${extension} build coordination until the shared payload's last edge retires`, () => {
+      const viewer = createViewer();
+      const service = buildService();
+      const first = main[consume](service);
+      const second = main[consume](service);
+      subscriptions.add(first, second);
+      service.start(file.replace(/\.pdf$/i, extension));
+      expect(viewer.builds.size).toBe(2);
+      first.dispose();
+      expect(viewer[getter]()).toBe(service);
+      expect(viewer.builds.size).toBe(1);
+      service.finish(file.replace(/\.pdf$/i, extension));
+      expect(viewer.builds.size).toBe(0);
+      second.dispose();
+      expect(viewer[getter]()).not.toBe(service);
+    });
+
+    it(`restores the latest surviving ${extension} provider in A-B-A registration order`, () => {
+      const viewer = createViewer();
+      const a = buildService();
+      const b = buildService();
+      const first = main[consume](a);
+      const middle = main[consume](b);
+      const last = main[consume](a);
+      subscriptions.add(first, middle, last);
+      expect(viewer[getter]()).toBe(a);
+      last.dispose();
+      expect(viewer[getter]()).toBe(b);
+      middle.dispose();
+      expect(viewer[getter]()).toBe(a);
+    });
+  }
+
+  it("does not let a retired viewer-observer lease remove the new generation's callback", async () => {
+    const previousViewers = main.viewers;
+    const callback = jasmine.createSpy("observe viewers");
+    const previousLease = main.observeViewers(callback);
+    subscriptions.add(previousLease);
+    await lumine.packages.deactivatePackage("pdf-view");
+    main = (await lumine.packages.activatePackage("pdf-view")).mainModule;
+    subscriptions.add(main.observeViewers(callback));
+    previousLease.dispose();
+    const viewer = createViewer();
+    expect(callback).toHaveBeenCalledWith(viewer);
+    expect(previousViewers.size).toBe(0);
+  });
+
+  it("declines retained service operations and adapters after package reactivation", async () => {
+    const previous = main.providePdfView();
+    const previousNavigation = main.provideNavigationAdapter();
+    const previousSearch = main.provideSearchAdapter();
+    await lumine.packages.deactivatePackage("pdf-view");
+    main = (await lumine.packages.activatePackage("pdf-view")).mainModule;
+    const open = spyOn(lumine.workspace, "open");
+    expect(await previous.open(file)).toBeNull();
+    expect(open).not.toHaveBeenCalled();
+    const viewer = createViewer();
+    expect(previousNavigation.handlesItem(viewer)).toBe(false);
+    expect(previousSearch.handlesItem(viewer)).toBe(false);
+    expect(previousSearch.getAdapterForItem(viewer)).toBeNull();
+  });
+
+  it("cancels an in-flight placement before retiring the viewer generation", async () => {
+    const previous = main.providePdfView();
+    subscriptions.add(main.observeViewers((viewer) => observations.add(viewer.fileObservation)));
+    const workspaceOpen = lumine.workspace.open.bind(lumine.workspace);
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    spyOn(lumine.workspace, "open").and.callFake(async (...args) => {
+      await gate;
+      return workspaceOpen(...args);
+    });
+    const pending = previous.open(file);
+    const viewer = [...main.viewers][0];
+    await lumine.packages.deactivatePackage("pdf-view");
+    release();
+    expect(await pending).toBeNull();
+    expect(viewer.destroyed).toBe(true);
+    expect(lumine.workspace.getPaneItems()).not.toContain(viewer);
   });
 });

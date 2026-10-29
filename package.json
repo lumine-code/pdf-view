@@ -7,7 +7,7 @@
     "url": "https://github.com/lumine-code/pdf-view/issues"
   },
   "homepage": "https://github.com/lumine-code/pdf-view#readme",
-  "pdfjsVersion": "6.4.299",
+  "version": "1.0.0",
   "keywords": [
     "viewer",
     "synctex",
@@ -17,15 +17,22 @@
     "document",
     "sofistik"
   ],
-  "version": "1.0.0",
   "license": "MIT",
   "engines": {
     "lumine": "^1.0.0"
   },
   "main": "./lib/main",
   "specPackages": [
+    "search-panel",
+    "navigation-panel",
+    "language-regex",
+    "invert-colors",
     "scrollmap",
-    "invert-colors"
+    "marker",
+    "breadcrumbs",
+    "launcher",
+    "open-external",
+    "sofistik-tools"
   ],
   "files": [
     "docs",
@@ -35,33 +42,38 @@
     "scripts",
     "spec",
     "styles",
-    "vendors",
+    "LICENSE",
     "THIRD_PARTY_NOTICES"
   ],
   "scripts": {
     "test": "lumine --test spec",
+    "test:unit": "node --test spec/unit/*.test.js",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "update": "node scripts/update.js"
+    "format:check": "prettier --check ."
   },
   "deserializers": {
     "pdf-view": "deserialize"
   },
   "providedServices": {
-    "invert-colors.provider": {
-      "versions": {
-        "1.0.0": "provideInversionProvider"
-      }
-    },
     "pdf-view": {
       "versions": {
-        "1.0.0": "providePdfView"
+        "2.0.0": "providePdfView"
       }
     },
     "navigation.adapter": {
       "versions": {
         "1.0.0": "provideNavigationAdapter"
+      }
+    },
+    "search.adapter": {
+      "versions": {
+        "2.0.0": "provideSearchAdapter"
+      }
+    },
+    "invert-colors.provider": {
+      "versions": {
+        "1.0.0": "provideInversionProvider"
       }
     },
     "background-tips.provider": {
@@ -89,85 +101,47 @@
   },
   "configSchema": {
     "autoRefresh": {
-      "title": "Auto-reload on update",
-      "description": "Automatically reload when the file is updated. The window can be refreshed manually by press `F5` in pdf-view.",
+      "title": "Auto Refresh",
+      "description": "Reload PDFs when their files change on disk.",
       "type": "boolean",
       "default": true
     },
-    "autoTime": {
-      "title": "Auto-refresh delay",
-      "description": "The time in ms before reloading the pdf-view after the last detected change.",
-      "type": "integer",
-      "default": 1000
-    },
     "defaultZoom": {
-      "title": "Default zoom",
-      "description": "The default zoom level when opening a PDF.",
+      "title": "Default Zoom",
+      "description": "Initial zoom for newly opened documents.",
       "type": "string",
       "enum": [
         "auto",
         "page-fit",
         "page-width",
-        "page-actual",
-        "50",
-        "75",
-        "100",
-        "125",
-        "150",
-        "200"
+        "page-actual"
       ],
       "default": "auto"
     },
-    "defaultSidebar": {
-      "title": "Default sidebar",
-      "description": "The default sidebar view when opening a PDF.",
-      "type": "string",
-      "enum": [
-        "none",
-        "thumbs",
-        "outline",
-        "attachments"
-      ],
-      "default": "none"
-    },
-    "snoFilter": {
-      "title": "Filter section numbers",
-      "description": "Remove leading section numbers from PDF outline entries in navigation-panel.",
-      "type": "boolean",
-      "default": false
+    "maxCanvasPixels": {
+      "title": "Maximum Canvas Pixels",
+      "description": "Limit each rendered page canvas to bound memory use at high zoom.",
+      "type": "integer",
+      "minimum": 1048576,
+      "default": 8388608
     },
     "scrollmap": {
       "title": "Scrollmap",
-      "description": "Show PDF outline markers on the scrollbar when scrollmap is installed.",
+      "description": "PDF heading markers on the scrollbar overview.",
       "type": "object",
       "properties": {
-        "enabled": {
-          "title": "Enabled",
-          "type": "boolean",
-          "default": true
-        },
         "maxDepth": {
-          "title": "Max Depth",
-          "description": "Maximum outline depth to show. Zero means no limit.",
+          "title": "Maximum Heading Level",
+          "description": "Show outline headings up to this level. Zero shows all levels.",
           "type": "integer",
           "minimum": 0,
-          "default": 0
-        },
-        "threshold": {
-          "title": "Threshold",
-          "description": "Hide markers if count exceeds this value. Zero means no limit.",
-          "type": "integer",
-          "minimum": 0,
-          "default": 0
+          "default": 1
         }
       }
-    },
-    "debug": {
-      "title": "Debug",
-      "description": "Show some errors in console.",
-      "type": "boolean",
-      "default": false
     }
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.4.299"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -22,3 +22,4 @@ secret-store.json
 /state-store/
 .idea/workspace.xml
 *.creator.user
+/.capture/
