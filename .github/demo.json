@@ -1,18 +1,18 @@
 {
   "title": "pdf-view",
   "description": "Read a generated signal report in the PDF viewer.",
-  "recordedOn": "2026-10-14",
-  "sourceRevision": "65f9a6858f05174f6cf77f571c4b4f85fcf1bb01",
-  "themeSourceRevision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
+  "recordedOn": "2026-10-29",
+  "sourceRevision": "9cdf0b0927015d68843a9a5372faef03dbdf9746",
+  "themeSourceRevision": "543b6786cc6eed20334c381eb322fc06e00a67b0",
   "mode": "normal",
   "fontSettings": "default",
   "scenario": "demo.js",
-  "recipeHash": "68eb98f29a93ea3e9c3ed71ef9721c69c2ea624a59b86efe94e30f862f79be6d",
+  "recipeHash": "ef8ff914f50c8706b1fc1331229d5c87a89bb34dff3259df290abcc0def9585b",
   "environment": {
     "platform": "win32",
     "arch": "x64",
-    "electron": "44.7.0",
-    "chrome": "152.0.7977.130",
+    "electron": "45.0.0",
+    "chrome": "156.0.8078.48",
     "devicePixelRatio": 1,
     "locale": "en-GB",
     "fontFamily": "Fira Code, Menlo, DejaVu Sans Mono, Consolas, monospace",
@@ -21,24 +21,25 @@
   },
   "viewport": { "width": 1200, "height": 760 },
   "cornerRadius": 10,
+  "privacy": { "version": 1, "location": "neutral", "textChecked": true },
   "sources": {
     "editor": {
-      "revision": "8be8f86075ad93df038610d82b3ac6d99329957d",
+      "revision": "b569c426733b65e6e7ea16b00430f701a289996e",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "package": {
-      "revision": "65f9a6858f05174f6cf77f571c4b4f85fcf1bb01",
+      "revision": "9cdf0b0927015d68843a9a5372faef03dbdf9746",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "pdf-view": {
-      "revision": "65f9a6858f05174f6cf77f571c4b4f85fcf1bb01",
+      "revision": "9cdf0b0927015d68843a9a5372faef03dbdf9746",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "one-theme": {
-      "revision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
+      "revision": "543b6786cc6eed20334c381eb322fc06e00a67b0",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
@@ -59,7 +60,7 @@
       "label": "Read a generated signal report in the PDF viewer.",
       "width": 1200,
       "height": 760,
-      "sha256": "f00222ff300443d235ba67dc5d164be7c29f8e805817545fff33a36257856c95"
+      "sha256": "e322db0d3904f3e572da220978111aa2c26034244ae6be82aa0dad93e27f2e05"
     }
   ]
 }

@@ -18,6 +18,8 @@ Built on Mozilla's PDF.js with native controls, document search and outline navi
 - **Auto-reload**: watches the file on disk, preserves the current view when refreshing and pauses reloads during LaTeX or Typst builds.
 - **Large documents**: reads disk ranges on demand, limits page canvases and leaves page rendering to PDF.js's rendering queue.
 
+![Read a generated signal report in the PDF viewer.](.github/demo.png)
+
 ## Installation
 
 To install `pdf-view` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/pdf-view`.
