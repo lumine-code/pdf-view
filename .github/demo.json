@@ -2,7 +2,7 @@
   "title": "pdf-view",
   "description": "Read a generated signal report in the PDF viewer.",
   "recordedOn": "2026-10-29",
-  "sourceRevision": "9cdf0b0927015d68843a9a5372faef03dbdf9746",
+  "sourceRevision": "c8df6d797fb448ce21166c4195aca5bba883e3df",
   "themeSourceRevision": "543b6786cc6eed20334c381eb322fc06e00a67b0",
   "mode": "normal",
   "fontSettings": "default",
@@ -24,17 +24,17 @@
   "privacy": { "version": 1, "location": "neutral", "textChecked": true },
   "sources": {
     "editor": {
-      "revision": "b569c426733b65e6e7ea16b00430f701a289996e",
+      "revision": "351054996f0a77c69c5e484eb5584bd8fd756ece",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "package": {
-      "revision": "9cdf0b0927015d68843a9a5372faef03dbdf9746",
+      "revision": "c8df6d797fb448ce21166c4195aca5bba883e3df",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "pdf-view": {
-      "revision": "9cdf0b0927015d68843a9a5372faef03dbdf9746",
+      "revision": "c8df6d797fb448ce21166c4195aca5bba883e3df",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
