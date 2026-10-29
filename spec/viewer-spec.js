@@ -73,6 +73,25 @@ describe("Native PDF view", () => {
     expect(viewer.pdfViewer.currentScale).toBeCloseTo(1.5, 2);
   });
 
+  it("publishes loaded document metadata and retires reload observations", async () => {
+    await open({ pages: 3 });
+    const changed = jasmine.createSpy("PDF metadata changed");
+    const lease = viewer.onDidChangeMetadata(changed);
+    try {
+      const [section] = await viewer.getMetadata();
+      expect(section.id).toBe("pdf");
+      expect(section.rows.find((row) => row.id === "pages").value).toBe(3);
+      await viewer.reload();
+      expect(changed).toHaveBeenCalled();
+      lease.dispose();
+      changed.calls.reset();
+      viewer.emitter.emit("did-load", viewer.pdfDocument);
+      expect(changed).not.toHaveBeenCalled();
+    } finally {
+      lease.dispose();
+    }
+  });
+
   it("publishes generic navigation and search adapters without their own panels", async () => {
     await open({
       pages: 3,

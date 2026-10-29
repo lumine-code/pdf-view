@@ -2,6 +2,8 @@
 
 View PDF files directly in the editor.
 
+The Metadata panel reads page counts, document information and available XMP fields from the loaded PDF, refreshing when the document reloads.
+
 Built on Mozilla's PDF.js with native controls, document search and outline navigation.
 
 ## Features
