@@ -60,6 +60,13 @@ describe("PDF viewing controls", () => {
     expect(event.defaultPrevented).toBe(true);
   }
 
+  function setMotion(reduced) {
+    const native = window.matchMedia.bind(window);
+    spyOn(window, "matchMedia").and.callFake((query) =>
+      query === "(prefers-reduced-motion: reduce)" ? { matches: reduced } : native(query),
+    );
+  }
+
   it("leaves typing and clipboard shortcuts native in the page field, then commits or cancels", async () => {
     await open();
     viewer.setScale(1.5);
@@ -206,6 +213,7 @@ describe("PDF viewing controls", () => {
   });
 
   it("zooms smoothly with the wheel over the scale button without scrolling or taking focus", async () => {
+    setMotion(false);
     await open(3);
     viewer.setScale(1);
     viewer.viewport.scrollTop = 200;
@@ -243,6 +251,7 @@ describe("PDF viewing controls", () => {
   });
 
   it("accepts fine, line and page wheel input on the scale button and releases its listener", async () => {
+    setMotion(false);
     await open(1);
     const button = viewer.toolbar.scaleButton;
     const wheel = (deltaY, deltaMode = 0) => {
@@ -284,6 +293,42 @@ describe("PDF viewing controls", () => {
     const zoom = spyOn(viewer, "zoomBy");
     expect(wheel(-100).defaultPrevented).toBe(false);
     expect(zoom).not.toHaveBeenCalled();
+  });
+
+  it("applies wheel and shortcut zoom immediately when reduced motion is preferred", async () => {
+    setMotion(true);
+    await open(3);
+    viewer.setScale(1);
+    const outside = document.createElement("input");
+    jasmine.attachToDOM(outside);
+    outside.focus();
+    const bubbled = jasmine.createSpy("wheel outside the scale button");
+    viewer.element.addEventListener("wheel", bubbled);
+    const wheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -100 });
+    viewer.toolbar.scaleButton.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(bubbled).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(outside);
+    expect(viewer.pdfViewer.currentScale).toBeCloseTo(Math.exp(0.2), 8);
+    expect(viewer.toolbar.scaleButton.textContent).toBe("122%");
+    expect(viewer.zoomAnimation.active).toBe(false);
+    expect(viewer.zoomAnimation.frame).toBeNull();
+    expect(viewer.zoomAnimation.targetScale).toBeNull();
+    viewer.element.removeEventListener("wheel", bubbled);
+
+    viewer.setScale(1);
+    viewer.focus();
+    keymapEvent(viewer.viewport, "+");
+    expect(viewer.pdfViewer.currentScale).toBeCloseTo(1.1, 8);
+    keymapEvent(viewer.viewport, "+");
+    expect(viewer.pdfViewer.currentScale).toBeCloseTo(1.21, 8);
+    const modifier = process.platform === "darwin" ? { cmd: true } : { ctrl: true };
+    keymapEvent(viewer.viewport, "+", modifier);
+    expect(viewer.pdfViewer.currentScale).toBe(1.25);
+    expect(viewer.toolbar.scaleButton.textContent).toBe("125%");
+    expect(viewer.zoomAnimation.active).toBe(false);
+    expect(viewer.zoomAnimation.frame).toBeNull();
+    expect(document.activeElement).toBe(viewer.viewport);
   });
 
   it("navigates with the wheel anywhere on the page counter while preserving focus and page bounds", async () => {
@@ -516,6 +561,7 @@ describe("PDF viewing controls", () => {
   });
 
   it("keeps ordinary zoom relative and steps modifier shortcuts through the menu levels", async () => {
+    setMotion(false);
     await open(3);
     const run = spyOn(main, "run").and.callThrough();
     const modifier = process.platform === "darwin" ? { cmd: true } : { ctrl: true };

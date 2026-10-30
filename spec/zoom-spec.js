@@ -374,6 +374,40 @@ describe("PDF adaptive width zoom", () => {
     return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   }
 
+  function useZoomClock(viewer) {
+    const animation = viewer.zoomAnimation;
+    const nativeWindow = animation.window;
+    let time = 0;
+    let nextFrame = 0;
+    const frames = new Map();
+    animation.window = {
+      performance: { now: () => time },
+      matchMedia: nativeWindow.matchMedia.bind(nativeWindow),
+      requestAnimationFrame(callback) {
+        const id = ++nextFrame;
+        frames.set(id, callback);
+        return id;
+      },
+      cancelAnimationFrame: (id) => frames.delete(id),
+    };
+    return {
+      frame(timestamp) {
+        time = timestamp;
+        expect(frames.size).toBe(1);
+        const [id, callback] = frames.entries().next().value;
+        frames.delete(id);
+        callback(time);
+      },
+      get pendingFrames() {
+        return frames.size;
+      },
+      restore() {
+        animation.cancel({ redraw: false });
+        animation.window = nativeWindow;
+      },
+    };
+  }
+
   function pdfPoint(viewer, x, y) {
     const page = viewer.pdfViewer.getPageView(0);
     const rect = page.div.getBoundingClientRect();
@@ -388,13 +422,21 @@ describe("PDF adaptive width zoom", () => {
     setMotion(viewer);
     viewer.setScale(1);
     const updates = spyOn(viewer.pdfViewer.getPageView(0), "update").and.callThrough();
-    const finished = viewer.executeCommand("zoom-in");
-    expect(viewer.zoomAnimation.active).toBe(true);
-    expect(viewer.pdfViewer.currentScale).toBe(1);
-    await twoFrames();
-    expect(viewer.pdfViewer.currentScale).toBeGreaterThan(1);
-    expect(viewer.pdfViewer.currentScale).toBeLessThan(1.1);
-    await finished;
+    const clock = useZoomClock(viewer);
+    try {
+      const finished = viewer.executeCommand("zoom-in");
+      expect(viewer.zoomAnimation.active).toBe(true);
+      expect(viewer.pdfViewer.currentScale).toBe(1);
+      clock.frame(30);
+      expect(viewer.pdfViewer.currentScale).toBeGreaterThan(1);
+      expect(viewer.pdfViewer.currentScale).toBeLessThan(1.1);
+      clock.frame(75);
+      clock.frame(150);
+      await finished;
+      expect(clock.pendingFrames).toBe(0);
+    } finally {
+      clock.restore();
+    }
     expect(viewer.pdfViewer.currentScale).toBeCloseTo(1.1, 8);
     expect(viewer.zoomAnimation.active).toBe(false);
     expect(updates.calls.count()).toBeGreaterThan(1);
@@ -457,13 +499,23 @@ describe("PDF adaptive width zoom", () => {
     const viewer = await open();
     setMotion(viewer);
     viewer.setScale(0.5);
+    // Sample distinct times: a host frame near the endpoint can round to the
+    // final scale before completion, and duplicate RAF timestamps are valid.
+    const clock = useZoomClock(viewer);
     const scales = [];
     const apply = viewer.zoomAnimation.apply.bind(viewer.zoomAnimation);
     spyOn(viewer.zoomAnimation, "apply").and.callFake((scale, final) => {
       apply(scale, final);
       scales.push(viewer.pdfViewer.currentScale);
     });
-    await viewer.setScale(0.55, { smooth: true });
+    try {
+      const finished = viewer.setScale(0.55, { smooth: true });
+      for (let time = 15; time <= 150; time += 15) clock.frame(time);
+      await finished;
+      expect(clock.pendingFrames).toBe(0);
+    } finally {
+      clock.restore();
+    }
     expect(scales.length).toBeGreaterThan(5);
     expect(new Set(scales).size).toBe(scales.length);
     expect(
