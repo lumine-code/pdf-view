@@ -205,27 +205,18 @@
   position: absolute;
   inset: 0;
   z-index: 60;
-  display: grid;
-  grid-template-columns: auto auto;
-  align-content: center;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  gap: var(--pdf-view-spacing);
   padding: var(--ui-spacing);
   background: color-mix(in srgb, var(--pane-item-background-color) 94%, transparent);
 }
 
-.pdf-view .pdf-view-password label {
-  display: flex;
-  flex-direction: column;
-  grid-column: 1 / -1;
-  gap: var(--pdf-view-spacing);
-  margin: 0;
-  text-align: center;
-}
-
-.pdf-view .pdf-view-password input {
-  width: min(24em, 70vw);
+.pdf-view .pdf-view-password-dialog {
+  width: min(36em, 100%);
   min-width: 0;
+  max-height: 100%;
+  overflow: auto;
 }
 
 .pdf-view[data-tool="hand"] .pdf-view-container,
