@@ -84,6 +84,52 @@ describe("PDF adaptive width zoom", () => {
     expect(viewer.getViewState().zoomMode).toBeNull();
   });
 
+  it("shares zoom and tool choices across popup/application aliases without borrowing another viewer's state", async () => {
+    const first = await open(420, 300);
+    const second = main.createViewer(first.getPath());
+    viewers.push(second);
+    second.element.style.cssText = "position:absolute;width:700px;height:500px;top:0;left:0";
+    await lumine.workspace.open(second, { split: "right" });
+    await second.whenReady();
+    second.setScale("page-fit");
+    const state = (command, target = first.viewport, detail) =>
+      lumine.commands.getCommandState(`pdf-view:${command}`, { target, detail });
+    expect(lumine.workspace.getActivePaneItem()).toBe(second);
+    expect(state("automatic-zoom")).toEqual({ type: "radio", checked: true });
+    expect(state("fit-to-view")).toEqual({ type: "radio", checked: false });
+    expect(state("fit-to-view", second.viewport)).toEqual({ type: "radio", checked: true });
+    expect(state("automatic-zoom", second.viewport)).toEqual({ type: "radio", checked: false });
+
+    const invalidate = spyOn(lumine.commands, "invalidateAvailability").and.callThrough();
+    first.setScale(1);
+    expect(invalidate).toHaveBeenCalledWith({ target: first.element });
+    expect(state("automatic-zoom").checked).toBe(false);
+    expect(state("zoom-100")).toEqual({ type: "radio", checked: true });
+    first.setScale(0.5);
+    expect(state("zoom-100").checked).toBe(false);
+    expect(state("set-zoom", first.viewport, { scale: 0.5 })).toEqual({
+      type: "radio",
+      checked: true,
+    });
+    expect(state("set-zoom", first.viewport, { scale: 1 }).checked).toBe(false);
+    invalidate.calls.reset();
+    first.executeCommand("hand-tool");
+    expect(invalidate).toHaveBeenCalledWith({ target: first.element });
+    expect(state("hand-tool")).toEqual({ type: "radio", checked: true });
+    expect(state("select-tool").checked).toBe(false);
+    expect(state("select-tool", second.viewport).checked).toBe(true);
+    for (const command of [
+      "zoom-in",
+      "zoom-out",
+      "zoom-next-level",
+      "zoom-previous-level",
+      "next-page",
+      "previous-page",
+    ]) {
+      expect(state(command)).toBeNull();
+    }
+  });
+
   it("preserves restored and explicitly requested zoom instead of replacing it with the default", async () => {
     const viewer = await open(420, 300);
     const restored = await attach(
