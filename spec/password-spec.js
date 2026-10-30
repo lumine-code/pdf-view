@@ -15,6 +15,11 @@ describe("PDF password input ownership", () => {
     const reply = jasmine.createSpy("password reply");
     const form = viewer.showPassword(reply);
     const editor = viewer.passwordEditor;
+    expect(editor.getElement().style.webkitTextSecurity).toBe("none");
+    editor.setText("document secret");
+    expect(editor.getElement().style.webkitTextSecurity).toBe("disc");
+    editor.setText("");
+    expect(editor.getElement().style.webkitTextSecurity).toBe("none");
     editor.setText("document secret");
     expect(editor.getElement().style.webkitTextSecurity).toBe("disc");
     expect(lumine.textEditors.getEditors().length).toBe(baseline + 1);
