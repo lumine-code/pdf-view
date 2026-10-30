@@ -55,6 +55,19 @@ describe("PDF overview through scrollmap.widget", () => {
       scrollHeight: { configurable: true, get: () => metrics.total },
       scrollTop: { configurable: true, value: 200, writable: true },
     });
+    const readGeometry = lumine.scrollbars.getGeometry.bind(lumine.scrollbars);
+    spyOn(lumine.scrollbars, "getGeometry").and.callFake((element) =>
+      element === viewport
+        ? {
+            verticalSize: 10,
+            horizontalSize: 10,
+            viewportWidth: metrics.width,
+            viewportHeight: metrics.height,
+            scrollWidth: metrics.width,
+            scrollHeight: metrics.total,
+          }
+        : readGeometry(element),
+    );
     viewport.getBoundingClientRect = () => ({
       top: 40,
       left: 0,
