@@ -84,6 +84,8 @@ module.exports = {
 
 The service owns lookup, creation, replacement, readiness, navigation and tab presentation. Callers do not search viewers, change their files or reveal their URIs separately. PDF destinations and integration tags are service arguments; callers must not encode integration metadata into a workspace opening or a file URI.
 
+Without an explicit `pane`, `split` reuses the outermost sibling pane in the requested direction, creating a split only when needed. An explicit `pane` with `split` always creates an adjacent pane.
+
 `openerId` identifies the provider's registered workspace path opener. A consumer offering an opener picker can use this public ID for a request-scoped opening override and invoke `open` with its own destination options when the PDF choice is selected. This avoids depending on a package name or replacing the opener globally. The viewing service currently supports help opening in the current native window.
 
 Changing the file in a tagged viewer keeps the user's zoom mode or percentage and rotation. An identical file is not reloaded, and a request without a destination retains its position. Internal PDF links remain normal destination links. Standard PDF file URLs can still carry native PDF fragments when opened by the workspace.
