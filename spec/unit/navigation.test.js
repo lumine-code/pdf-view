@@ -48,7 +48,7 @@ test("bookmark resolution is bounded, deduplicated, and does not request pages",
     title: `Part ${index}`,
     dest: `section-${index % 20}`,
   }));
-  const { item, updates, observe } = fixture(outline);
+  const { item, updates, notifications, observe } = fixture(outline);
   let pending = 0;
   let maximum = 0;
   let namedCalls = 0;
@@ -75,6 +75,10 @@ test("bookmark resolution is bounded, deduplicated, and does not request pages",
     assert.equal(referenceCalls, 20);
     assert.ok(maximum <= 4);
     assert.equal(updates.at(-1)[79].badge, 20);
+    assert.ok(notifications.length > 4);
+    assert.ok(notifications.slice(0, -1).every(({ options }) => options.loading === true));
+    assert.equal(notifications.at(-1).options.loading, false);
+    assert.ok(notifications.every(({ options }) => options.instant === undefined));
   } finally {
     subscription.dispose();
   }
@@ -121,7 +125,7 @@ test("returning to a pane reuses document metadata without repeating worker requ
 });
 
 test("reload invalidates old resolutions and does not schedule their remaining bookmarks", async () => {
-  const { item, updates, observe } = fixture(
+  const { item, updates, notifications, observe } = fixture(
     Array.from({ length: 80 }, (_, index) => ({ title: `Old ${index}`, dest: `old-${index}` })),
   );
   const waiting = [];
@@ -135,14 +139,36 @@ test("reload invalidates old resolutions and does not schedule their remaining b
     };
     item.emit("load");
     await until(() => updates.at(-1)?.[0]?.badge === 2);
+    const count = notifications.length;
     for (const resolve of waiting) resolve([0, { name: "Fit" }]);
     await immediate();
     assert.equal(waiting.length, 4);
     assert.equal(updates.at(-1)[0].text, "Replacement");
+    assert.equal(notifications.length, count);
+    assert.equal(notifications.at(-1).options.loading, false);
   } finally {
     subscription.dispose();
   }
 });
+
+for (const failure of [false, true]) {
+  test(`completes outline loading after ${failure ? "a worker failure" : "an empty outline"}`, async () => {
+    const { item, notifications, observe } = fixture([]);
+    item.pdfDocument.getOutline = async () => {
+      if (failure) throw new Error("Unreadable outline");
+      return null;
+    };
+    const subscription = observe();
+    try {
+      assert.equal(notifications[0].options.loading, true);
+      await until(() => notifications.at(-1).options.loading === false);
+      assert.deepEqual(notifications.at(-1).headers, []);
+      assert.ok(notifications.slice(0, -1).every(({ options }) => options.loading === true));
+    } finally {
+      subscription.dispose();
+    }
+  });
+}
 
 test("destroy invalidates worker results and subscriptions", async () => {
   let resolveOutline;

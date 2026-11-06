@@ -164,4 +164,101 @@ describe("PDF navigation-panel service integration", () => {
       cancelAnimationFrame(frame);
     }
   }, 30000);
+
+  it("reveals a distant PDF outline immediately on focus changes and smoothly follows later scrolling", async () => {
+    const file = path.join(directory, "focus-outline.pdf");
+    fs.writeFileSync(
+      file,
+      createPdf({
+        pages: 96,
+        outline: Array.from({ length: 96 }, (_, index) => ({
+          title: `Section ${index + 1}`,
+          page: index,
+        })),
+      }),
+    );
+    const main = lumine.packages.getActivePackage("pdf-view").mainModule;
+    viewer = main.createViewer(file);
+    viewer.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
+    await lumine.workspace.open(viewer);
+    await viewer.whenReady();
+    lumine.commands.dispatch(viewer.viewport, "navigation-panel:open");
+    const service = navigation.provideNavigationHeaders();
+    await conditionPromise(
+      () =>
+        service.getFlattenHeaders().length === 96 &&
+        service.getFlattenHeaders().every((header) => header.badge !== null),
+      "initial PDF outline metadata",
+      15000,
+    );
+    const tree = navigation.navigationTree;
+    tree.element.style.height = "240px";
+    const grammar = await lumine.packages.activatePackage("language-javascript");
+    await grammar.resourceLoadPromise;
+    const source = await lumine.workspace.open(undefined, { split: "left" });
+    source.setGrammar(lumine.grammars.grammarForScopeName("source.js"));
+    source.setText("//$// Source section\n");
+    const sourcePane = lumine.workspace.paneForItem(source);
+    const sourceView = lumine.views.getView(source);
+    const animate = spyOn(tree, "animateScrollTo").and.callThrough();
+    const update = spyOn(navigation, "updateAdapterHeaders").and.callThrough();
+    const media = window.matchMedia.bind(window);
+    spyOn(window, "matchMedia").and.callFake((query) =>
+      query === "(prefers-reduced-motion: reduce)" ? { matches: false } : media(query),
+    );
+
+    // Repeat the actual pointer activation, including replay from the adapter's
+    // document cache. Resolving cached destinations still publishes in batches.
+    for (let repeat = 0; repeat < 2; repeat++) {
+      sourcePane.activate();
+      sourceView.focus();
+      await conditionPromise(
+        () =>
+          service.getEditor() === source &&
+          service.getFlattenHeaders().length === 1 &&
+          tree.element.querySelector(".navigation-text")?.textContent.trim() === "Source section",
+        "source editor outline before PDF activation",
+        10000,
+      );
+      expect(sourceView.contains(document.activeElement)).toBe(true);
+      viewer.goToPage(85);
+      await conditionPromise(
+        () => viewer.location?.pageNumber === 85,
+        "distant inactive PDF page",
+        10000,
+      );
+      tree.cancelScrollAnimation();
+      tree.refs.navigationScroller.scrollTop = 0;
+      animate.calls.reset();
+      update.calls.reset();
+      viewer.viewport.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
+      );
+      await conditionPromise(
+        () =>
+          service.getEditor() === viewer &&
+          service.getFlattenHeaders().length === 96 &&
+          service.getFlattenHeaders().every((header) => header.badge !== null) &&
+          update.calls.allArgs().some(([, options]) => options?.loading === false),
+        "fully restored PDF outline",
+        15000,
+      );
+      for (let frame = 0; frame < 2; frame++)
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      const snapshots = update.calls.allArgs().map(([, options]) => options);
+      expect(snapshots.filter((options) => options.loading === true).length).toBeGreaterThan(3);
+      expect(snapshots.at(-1).loading).toBe(false);
+      expect(animate).not.toHaveBeenCalled();
+      expect(tree.scrollAnimationID).toBeNull();
+      expect(tree.refs.navigationScroller.scrollTop).toBeGreaterThan(0);
+      expect(document.activeElement).toBe(viewer.viewport);
+
+      viewer.goToPage(10);
+      await conditionPromise(
+        () => animate.calls.count() > 0 && tree.scrollAnimationID === null,
+        "smooth tracking after the initial PDF reveal",
+        10000,
+      );
+    }
+  }, 45000);
 });
