@@ -4,7 +4,7 @@ const path = require("node:path");
 const { createPdf } = require("./helpers/pdf-fixture");
 
 describe("PDF scrolling", () => {
-  let viewer, main, directory;
+  let viewer, main, directory, scrollClock;
 
   beforeEach(async () => {
     jasmine.useRealClock();
@@ -27,6 +27,8 @@ describe("PDF scrolling", () => {
   });
 
   afterEach(async () => {
+    scrollClock?.restore();
+    scrollClock = null;
     const observation = viewer.fileObservation;
     await viewer.destroy();
     await observation.closed;
@@ -47,6 +49,52 @@ describe("PDF scrolling", () => {
     return event;
   }
 
+  function useScrollClock() {
+    const animation = viewer.scrollAnimation;
+    const ownerWindow = viewer.viewport.ownerDocument.defaultView;
+    const descriptor = Object.getOwnPropertyDescriptor(animation, "window");
+    let time = 0;
+    let nextFrame = 0;
+    const callbacks = new Map();
+    const animationWindow = {
+      performance: { now: () => time },
+      matchMedia: ownerWindow.matchMedia.bind(ownerWindow),
+      requestAnimationFrame(callback) {
+        const id = ++nextFrame;
+        callbacks.set(id, callback);
+        return id;
+      },
+      cancelAnimationFrame: (id) => callbacks.delete(id),
+    };
+    // by() reacquires the viewport's owning window on every input. Keep that
+    // ownership assertion while controlling only this animation's frame clock;
+    // PDF.js and the editor continue using their untouched native windows.
+    Object.defineProperty(animation, "window", {
+      configurable: true,
+      get: () => animationWindow,
+      set: (value) => {
+        expect(value).toBe(ownerWindow);
+      },
+    });
+    scrollClock = {
+      frame(timestamp) {
+        expect(timestamp).toBeGreaterThanOrEqual(time);
+        time = timestamp;
+        expect(callbacks.size).toBe(1);
+        const [id, callback] = callbacks.entries().next().value;
+        callbacks.delete(id);
+        callback(timestamp);
+      },
+      restore() {
+        animation.cancel();
+        expect(callbacks.size).toBe(0);
+        if (descriptor) Object.defineProperty(animation, "window", descriptor);
+        else delete animation.window;
+      },
+    };
+    return scrollClock;
+  }
+
   it("animates both axes and accumulates held arrows through the public commands", async () => {
     const commands = lumine.commands
       .findCommands({ target: viewer.viewport })
@@ -56,6 +104,7 @@ describe("PDF scrolling", () => {
     viewer.viewport.scrollTop = 200;
     viewer.viewport.scrollLeft = 150;
     viewer.focus();
+    const clock = useScrollClock();
     const run = spyOn(main, "run").and.callThrough();
     arrow(viewer.viewport, "down");
     for (let i = 0; i < 3; i++) arrow(viewer.viewport, "right");
@@ -71,11 +120,12 @@ describe("PDF scrolling", () => {
     const targetLeft = viewer.scrollAnimation.targetLeft;
     expect(targetTop).toBe(Math.round(200 + viewer.viewport.clientHeight / 10));
     expect(targetLeft).toBe(150 + 3 * Math.round(viewer.viewport.clientWidth / 10));
-    await frames();
+    clock.frame(30);
     expect(viewer.viewport.scrollTop).toBeGreaterThan(200);
     expect(viewer.viewport.scrollTop).toBeLessThan(targetTop);
     expect(viewer.viewport.scrollLeft).toBeGreaterThan(150);
     expect(viewer.viewport.scrollLeft).toBeLessThan(targetLeft);
+    clock.frame(120);
     await viewer.scrollAnimation.promise;
     expect(viewer.viewport.scrollTop).toBe(targetTop);
     expect(viewer.viewport.scrollLeft).toBe(targetLeft);
@@ -152,6 +202,7 @@ describe("PDF scrolling", () => {
     viewer.viewport.scrollLeft = 120;
     viewer.viewport.scrollTop = 200;
     viewer.toolbar.pageInput.focus();
+    const clock = useScrollClock();
     for (let index = 0; index < 3; index++) {
       const event = new WheelEvent("wheel", {
         bubbles: true,
@@ -167,9 +218,10 @@ describe("PDF scrolling", () => {
     expect(viewer.viewport.scrollTop).toBe(200);
     expect(viewer.scrollAnimation.targetLeft).toBe(168);
     expect(viewer.scrollAnimation.targetTop).toBe(320);
-    await frames();
+    clock.frame(30);
     expect(viewer.viewport.scrollTop).toBeGreaterThan(200);
     expect(viewer.viewport.scrollTop).toBeLessThan(320);
+    clock.frame(120);
     await viewer.scrollAnimation.promise;
     expect(viewer.viewport.scrollLeft).toBe(168);
     expect(viewer.viewport.scrollTop).toBe(320);
