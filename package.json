@@ -30,6 +30,9 @@
     "scrollmap",
     "marker",
     "breadcrumbs",
+    "tasks",
+    "latex-tools",
+    "typst-tools",
     "launcher",
     "open-external",
     "sofistik-tools"

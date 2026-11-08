@@ -327,8 +327,7 @@ describe("PDF source builds through registered compiler providers", () => {
       tex = source("document.tex"),
       typ = source("document.typ");
     fs.writeFileSync(tex, "\\documentclass{article}\n\\begin{document}Text\\end{document}\n");
-    const activate = async (name) =>
-      (await lumine.packages.activatePackage(path.join(__dirname, "..", "..", name))).mainModule;
+    const activate = async (name) => (await lumine.packages.activatePackage(name)).mainModule;
     const backend = await activate("tasks");
     try {
       const latex = await activate("latex-tools");
