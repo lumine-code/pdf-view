@@ -83,14 +83,14 @@
     }
   },
   "consumedServices": {
-    "latex-tools": {
+    "pdf-view.build-provider": {
       "versions": {
-        "^1.0.0": "consumeLatexTools"
+        "^1.0.0": "consumePdfBuildProvider"
       }
     },
-    "typst-tools": {
+    "latex.synctex": {
       "versions": {
-        "^1.0.0": "consumeTypstTools"
+        "^1.0.0": "consumeLatexSyncTex"
       }
     },
     "scrollmap.widget": {

@@ -234,6 +234,18 @@
               "command": "pdf-view:refresh",
               "group": "document",
               "order": 20
+            },
+            {
+              "label": "Compile Source",
+              "command": "pdf-view:compile",
+              "group": "document",
+              "order": 30
+            },
+            {
+              "label": "Toggle Compile on Save",
+              "command": "pdf-view:toggle-compile-on-save",
+              "group": "document",
+              "order": 40
             }
           ]
         }
@@ -264,6 +276,18 @@
           "command": "pdf-view:synctex",
           "group": "source",
           "order": 10
+        },
+        {
+          "label": "Compile Source",
+          "command": "pdf-view:compile",
+          "group": "source",
+          "order": 20
+        },
+        {
+          "label": "Toggle Compile on Save",
+          "command": "pdf-view:toggle-compile-on-save",
+          "group": "source",
+          "order": 30
         },
         {
           "label": "Reload PDF",

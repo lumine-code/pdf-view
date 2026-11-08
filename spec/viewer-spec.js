@@ -127,7 +127,8 @@ describe("Native PDF view", () => {
   it("opens the context menu without invoking SyncTeX and keeps its clicked coordinates", async () => {
     await open();
     const sync = jasmine.createSpy("syncToSource").and.resolveTo(null);
-    viewer.getLatexTools = () => ({ syncToSource: sync });
+    const service = { syncToSource: sync };
+    viewer.getSyncTex = () => service;
     const page = viewer.pagesElement.querySelector(".page");
     const rect = page.getBoundingClientRect();
     const event = new MouseEvent("contextmenu", {

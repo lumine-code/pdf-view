@@ -44,13 +44,42 @@ describe("PDF viewer ownership and service lifetimes", () => {
 
   function buildService() {
     const emitter = new Emitter();
+    const jobs = new Map();
     subscriptions.add(emitter);
     return {
-      onDidStartBuild: (callback) => emitter.on("start", callback),
-      onDidFinishBuild: (callback) => emitter.on("finish", callback),
-      onDidFailBuild: (callback) => emitter.on("fail", callback),
-      start: (source) => emitter.emit("start", { file: source }),
-      finish: (source) => emitter.emit("finish", { file: source }),
+      id: "fixture",
+      name: "Fixture compiler",
+      resolveSource: async () => null,
+      canBuild: () => false,
+      build: () => null,
+      canToggleCompileOnSave: () => false,
+      isCompileOnSaveEnabled: () => false,
+      toggleCompileOnSave: () => null,
+      isBuilding: (pdfPath) =>
+        [...jobs.values()].some((job) =>
+          job.artifacts.some((artifact) => artifact.path === pdfPath),
+        ),
+      onDidChangeBuilds: (callback) => emitter.on("builds", callback),
+      onDidChangeSources: (callback) => emitter.on("sources", callback),
+      start(id, artifactPaths = [file]) {
+        const job = {
+          id,
+          state: "running",
+          artifacts: artifactPaths.map((artifactPath) => ({ path: artifactPath, kind: "pdf" })),
+        };
+        jobs.set(id, job);
+        emitter.emit("builds");
+        return job;
+      },
+      change(job, changes) {
+        Object.assign(job, changes);
+        emitter.emit("builds");
+      },
+      finish(job, state = "passed") {
+        job.state = state;
+        jobs.delete(job.id);
+        emitter.emit("builds");
+      },
     };
   }
 
@@ -95,48 +124,119 @@ describe("PDF viewer ownership and service lifetimes", () => {
     expect(main.viewerForTarget(copy.viewport)).toBe(copy);
     expect(main.provideNavigationAdapter().handlesItem(copy)).toBe(true);
     expect(main.provideSearchAdapter().handlesItem(copy)).toBe(true);
-    expect(copy.getLatexTools).toEqual(jasmine.any(Function));
+    expect(copy.getSyncTex).toEqual(jasmine.any(Function));
     await lumine.packages.deactivatePackage("pdf-view");
     expect(copy.destroyed).toBe(true);
     expect(viewers.size).toBe(0);
   });
 
-  for (const [consume, getter, extension] of [
-    ["consumeLatexTools", "getLatexTools", ".tex"],
-    ["consumeTypstTools", "getTypstTools", ".typ"],
-  ]) {
-    it(`keeps ${extension} build coordination until the shared payload's last edge retires`, () => {
-      const viewer = createViewer();
-      const service = buildService();
-      const first = main[consume](service);
-      const second = main[consume](service);
-      subscriptions.add(first, second);
-      service.start(file.replace(/\.pdf$/i, extension));
-      expect(viewer.builds.size).toBe(2);
-      first.dispose();
-      expect(viewer[getter]()).toBe(service);
-      expect(viewer.builds.size).toBe(1);
-      service.finish(file.replace(/\.pdf$/i, extension));
-      expect(viewer.builds.size).toBe(0);
-      second.dispose();
-      expect(viewer[getter]()).not.toBe(service);
-    });
+  it("keeps build coordination until the shared payload's last edge retires", () => {
+    const viewer = createViewer();
+    const service = buildService();
+    const first = main.consumePdfBuildProvider(service);
+    const second = main.consumePdfBuildProvider(service);
+    subscriptions.add(first, second);
+    const job = service.start("document");
+    expect(viewer.builds.size).toBe(1);
+    first.dispose();
+    expect(viewer.builds.size).toBe(1);
+    service.finish(job);
+    expect(viewer.builds.size).toBe(0);
+    second.dispose();
+  });
 
-    it(`restores the latest surviving ${extension} provider in A-B-A registration order`, () => {
-      const viewer = createViewer();
-      const a = buildService();
-      const b = buildService();
-      const first = main[consume](a);
-      const middle = main[consume](b);
-      const last = main[consume](a);
-      subscriptions.add(first, middle, last);
-      expect(viewer[getter]()).toBe(a);
-      last.dispose();
-      expect(viewer[getter]()).toBe(b);
-      middle.dispose();
-      expect(viewer[getter]()).toBe(a);
-    });
-  }
+  it("keeps refresh paused until a provider finishes all work on that PDF", () => {
+    const viewer = createViewer();
+    const refresh = spyOn(viewer, "scheduleRefresh");
+    const service = buildService();
+    subscriptions.add(main.consumePdfBuildProvider(service));
+    const unrelated = service.start("unrelated", [path.join(directory, "elsewhere.pdf")]);
+    expect(viewer.builds.size).toBe(0);
+    const first = service.start("latex-custom-output");
+    const second = service.start("typst-custom-output");
+    expect(viewer.builds.size).toBe(1);
+    service.change(first, { state: "collecting" });
+    expect(viewer.builds.size).toBe(1);
+    service.finish(first, "failed");
+    expect(viewer.builds.size).toBe(1);
+    service.finish(unrelated);
+    expect(viewer.builds.size).toBe(1);
+    service.finish(second, "cancelled");
+    expect(viewer.builds.size).toBe(0);
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("attaches active jobs when the service arrives and when a viewer opens later", () => {
+    const viewer = createViewer();
+    const service = buildService();
+    const job = service.start("already-running");
+    subscriptions.add(main.consumePdfBuildProvider(service));
+    expect(viewer.builds.size).toBe(1);
+    const copy = createViewer();
+    expect(copy.builds.size).toBe(1);
+    service.finish(job);
+    expect(viewer.builds.size).toBe(0);
+    expect(copy.builds.size).toBe(0);
+  });
+
+  it("attaches and releases jobs when the viewed PDF path changes", () => {
+    const viewer = createViewer();
+    const service = buildService();
+    subscriptions.add(main.consumePdfBuildProvider(service));
+    const other = path.join(directory, "other.pdf");
+    service.start("other", [other]);
+    expect(viewer.builds.size).toBe(0);
+    viewer.setPath(other);
+    expect(viewer.builds.size).toBe(1);
+    viewer.setPath(file);
+    expect(viewer.builds.size).toBe(0);
+  });
+
+  it("keeps SyncTeX until the shared payload's last edge retires", () => {
+    const viewer = createViewer();
+    const service = { syncToSource() {}, syncToPdf() {} };
+    const first = main.consumeLatexSyncTex(service);
+    const second = main.consumeLatexSyncTex(service);
+    subscriptions.add(first, second);
+    expect(viewer.getSyncTex()).toBe(service);
+    first.dispose();
+    expect(viewer.getSyncTex()).toBe(service);
+    second.dispose();
+    expect(viewer.getSyncTex()).toBeUndefined();
+  });
+
+  it("restores the latest surviving SyncTeX provider in A-B-A registration order", () => {
+    const viewer = createViewer();
+    const a = { syncToSource() {}, syncToPdf() {} };
+    const b = { syncToSource() {}, syncToPdf() {} };
+    const first = main.consumeLatexSyncTex(a);
+    const middle = main.consumeLatexSyncTex(b);
+    const last = main.consumeLatexSyncTex(a);
+    subscriptions.add(first, middle, last);
+    expect(viewer.getSyncTex()).toBe(a);
+    last.dispose();
+    expect(viewer.getSyncTex()).toBe(b);
+    middle.dispose();
+    expect(viewer.getSyncTex()).toBe(a);
+  });
+
+  it("discards an in-flight inverse search when its SyncTeX service disappears", async () => {
+    const viewer = createViewer();
+    let resolve;
+    const service = {
+      syncToSource: () => new Promise((done) => (resolve = done)),
+      syncToPdf() {},
+    };
+    const lease = main.consumeLatexSyncTex(service);
+    subscriptions.add(lease);
+    viewer.contextPosition = { page: 1, x: 10, y: 20 };
+    const open = spyOn(lumine.workspace, "open");
+    const search = viewer.syncToSource();
+    lease.dispose();
+    resolve({ file: path.join(directory, "source.tex"), line: 2, column: 0 });
+    await search;
+    expect(open).not.toHaveBeenCalled();
+  });
 
   it("does not let a retired viewer-observer lease remove the new generation's callback", async () => {
     const previousViewers = main.viewers;

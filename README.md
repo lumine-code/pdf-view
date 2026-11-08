@@ -14,8 +14,9 @@ Built on Mozilla's PDF.js with native controls, document search and outline navi
 - **Navigation**: supplies bookmarks and current-section information to the navigation panel.
 - **Search**: supplies read-only document search to the search panel.
 - **Scrollmap**: shows outline headings and matching pages through the shared overview widget, with only top-level headings shown by default.
-- **SyncTeX**: opens the corresponding source position from the context menu when a LaTeX service is available.
-- **Auto-reload**: watches the file on disk, preserves the current view when refreshing and pauses reloads during LaTeX or Typst builds.
+- **SyncTeX**: opens the corresponding source position from the context menu when a SyncTeX service is available.
+- **Source builds**: rebuilds the document associated with the PDF through its registered compiler provider.
+- **Auto-reload**: watches the file on disk, preserves the current view when refreshing and pauses reloads while its PDF artifact is being built.
 - **Large documents**: reads disk ranges on demand, limits page canvases and leaves page rendering to PDF.js's rendering queue.
 
 ![Read a generated signal report in the PDF viewer.](.github/demo.png)
@@ -52,11 +53,15 @@ Commands available in `.pdf-view`:
 - `pdf-view:page-down`: scroll down by one viewport,
 - `pdf-view:refresh`: reload the PDF and preserve the current view,
 - `pdf-view:copy`: copy selected text,
-- `pdf-view:synctex`: open the source at the clicked PDF position.
+- `pdf-view:synctex`: open the source at the clicked PDF position,
+- `pdf-view:compile`: compile the associated source document (F12),
+- `pdf-view:toggle-compile-on-save`: toggle automatic compilation for the associated source (Alt+F12).
 
 ## Usage
 
 PDF panes and split copies work within the current native window. Moving a PDF pane between native windows is not supported.
+
+Press F12 in a PDF to compile its associated source, or Alt+F12 to toggle compile-on-save. The Compile on Save menu state follows that source's provider. PDF View asks registered build providers to identify the source when a document opens, reloads or changes, when providers change, and again before either action. LaTeX Tools and Typst Tools resolve their own documents and invoke the shared Tasks service; PDF View does not call it directly. Source hints survive splitting and restoring a PDF pane, and providers verify them when resolving the document. Both actions require a unique owning provider and leave focus and Tasks panel visibility unchanged.
 
 Opening another PDF in a pending preview reuses its pane item and native controls. The replacement is prepared before the displayed document changes; keeping the tab, closing it or starting another opening cancels an unfinished replacement.
 
@@ -77,15 +82,15 @@ Adjust the viewer background in your stylesheet:
 - `search.adapter`: provided to search the PDF through the search panel.
 - `invert-colors.provider`: provided to invert document pages without changing the controls.
 - `scrollmap.widget`: consumed to draw document and search markers beside the native scrollbar.
-- `latex-tools`: consumed for SyncTeX and build coordination.
-- `typst-tools`: consumed for build coordination.
+- [`pdf-view.build-provider`](docs/pdf-view.build-provider.md): consumed to resolve source ownership, compile documents, manage compile-on-save and pause PDF reloads while their output is being written.
+- `latex.synctex`: consumed to map a clicked PDF position to its source.
 - `background-tips.provider`: provided to describe PDF viewing in the empty workspace.
 
 ## Development
 
 Run `npm install --ignore-scripts` inside this directory. Tests live in `spec/`: run `node scripts/test.js` for the isolated Lumine integration specs and `npm run test:unit` for the Node unit tests in `spec/unit/`. The test launcher uses the sibling editor source or `LUMINE_RESOURCE_PATH` and an isolated profile.
 
-Run `node scripts/preview.js "C:/path/to/document.pdf"` to open an isolated preview with the local navigation, search and build-service packages. The preview uses `.dev/preview-home` and does not change the normal development profile.
+Run `node scripts/preview.js "C:/path/to/document.pdf"` to open an isolated preview with the local navigation, search and Tasks packages. The preview uses `.dev/preview-home` and does not change the normal development profile.
 
 ## Performance
 

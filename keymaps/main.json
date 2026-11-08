@@ -6,6 +6,8 @@
     "right": "pdf-view:scroll-right",
     "r": "pdf-view:refresh",
     "f5": "pdf-view:refresh",
+    "f12": "pdf-view:compile",
+    "alt-f12": "pdf-view:toggle-compile-on-save",
     "pageup": "pdf-view:previous-page",
     "pagedown": "pdf-view:next-page",
     "space": "pdf-view:page-down",

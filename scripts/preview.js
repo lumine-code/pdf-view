@@ -19,6 +19,7 @@ for (const name of [
   "marker",
   "breadcrumbs",
   "language-regex",
+  "tasks",
   "latex-tools",
   "typst-tools",
 ]) {

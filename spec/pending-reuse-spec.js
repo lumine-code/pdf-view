@@ -166,13 +166,23 @@ describe("Native PDF pending pane item reuse", () => {
     const search = searchFactory.getAdapterForItem(viewer);
     let headers = [];
     const buildEvents = new Emitter();
+    const building = new Set();
     const buildService = {
-      onDidStartBuild: (callback) => buildEvents.on("start", callback),
-      onDidFinishBuild: (callback) => buildEvents.on("finish", callback),
+      id: "fixture",
+      name: "Fixture compiler",
+      resolveSource: async () => null,
+      canBuild: () => false,
+      build: () => null,
+      canToggleCompileOnSave: () => false,
+      isCompileOnSaveEnabled: () => false,
+      toggleCompileOnSave: () => null,
+      isBuilding: (pdfPath) => building.has(pdfPath),
+      onDidChangeBuilds: (callback) => buildEvents.on("builds", callback),
+      onDidChangeSources: (callback) => buildEvents.on("sources", callback),
     };
     subscriptions.add(
       buildEvents,
-      main.consumeLatexTools(buildService),
+      main.consumePdfBuildProvider(buildService),
       main.observeViewers(observed),
       navigation.observeHeaders(viewer, (value) => (headers = value)),
     );
@@ -196,12 +206,14 @@ describe("Native PDF pending pane item reuse", () => {
     expect(headers[0].filePath).toBe(second);
     await navigation.navigateTo(viewer, headers[0], { focus: false });
     expect(viewer.getCurrentPage()).toBe(2);
-    expect(viewer.getLatexTools()).toBe(buildService);
-    buildEvents.emit("start", { file: first.replace(/\.pdf$/, ".tex") });
+    building.add(first);
+    buildEvents.emit("builds");
     expect(viewer.builds.size).toBe(0);
-    buildEvents.emit("start", { file: second.replace(/\.pdf$/, ".tex") });
+    building.add(second);
+    buildEvents.emit("builds");
     expect(viewer.builds.size).toBe(1);
-    buildEvents.emit("finish", { file: second.replace(/\.pdf$/, ".tex") });
+    building.delete(second);
+    buildEvents.emit("builds");
     expect(viewer.builds.size).toBe(0);
   }, 30000);
 
