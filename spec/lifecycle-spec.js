@@ -130,6 +130,40 @@ describe("PDF viewer ownership and service lifetimes", () => {
     expect(viewers.size).toBe(0);
   });
 
+  it("rebinds automatic fitting to the window that owns a detached PDF pane", async () => {
+    const workspace = lumine.workspace;
+    const viewer = createViewer();
+    viewer.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
+    await workspace.open(viewer);
+    await viewer.whenReady();
+    viewer.setScale("page-width");
+    const originalObserver = viewer.resizeObserver;
+    const disconnectOriginal = spyOn(originalObserver, "disconnect").and.callThrough();
+    try {
+      const extra = await workspace.detachPane(workspace.paneForItem(viewer));
+      const extraWindow = extra.getDOMWindow();
+      expect(viewer.element.ownerDocument).toBe(extra.getDocument());
+      expect(disconnectOriginal).toHaveBeenCalled();
+      expect(viewer.resizeObserver instanceof extraWindow.ResizeObserver).toBeTrue();
+      const removeResize = spyOn(extraWindow, "removeEventListener").and.callThrough();
+      // The window event must refit without waiting for observer delivery or scrolling.
+      viewer.resizeObserver.disconnect();
+      viewer.element.style.width = "430px";
+      extraWindow.dispatchEvent(new extraWindow.Event("resize"));
+      const page = await viewer.pdfDocument.getPage(viewer.getCurrentPage());
+      const width = page.getViewport({ scale: 96 / 72 }).width;
+      expect(viewer.pdfViewer.currentScale).toBeCloseTo(viewer.viewport.clientWidth / width, 5);
+      expect(viewer.captureView().scaleValue).toBe("page-width");
+
+      await workspace.attachWindow(extra);
+      expect(viewer.element.ownerDocument).toBe(document);
+      expect(viewer.resizeObserver instanceof window.ResizeObserver).toBeTrue();
+      expect(removeResize).toHaveBeenCalledWith("resize", viewer.onWindowResize);
+    } finally {
+      await workspace.discardEditorWindows();
+    }
+  });
+
   it("keeps build coordination until the shared payload's last edge retires", () => {
     const viewer = createViewer();
     const service = buildService();

@@ -170,6 +170,64 @@ describe("PDF adaptive width zoom", () => {
     expect(viewer.getViewState().scale).toBe(1);
   });
 
+  it("refits on window resize without waiting for a pane observer or scrolling", async () => {
+    const viewer = await open(520, 700);
+    const window = viewer.element.ownerDocument.defaultView;
+    // Native resize must also drive layout when observer delivery is delayed.
+    viewer.resizeObserver.disconnect();
+    viewer.element.style.width = "350px";
+    window.dispatchEvent(new window.Event("resize"));
+    await waitForWidth(viewer);
+    for (const preset of ["page-width", "page-fit", "page-height", "auto"]) {
+      viewer.setScale(preset);
+      viewer.element.style.width = "520px";
+      viewer.element.style.height = "700px";
+      window.dispatchEvent(new window.Event("resize"));
+      await waitForPreset(viewer, preset);
+      viewer.element.style.width = "350px";
+      viewer.element.style.height = "210px";
+      window.dispatchEvent(new window.Event("resize"));
+      await waitForPreset(viewer, preset);
+    }
+    viewer.setScale(0.75);
+    viewer.element.style.width = "800px";
+    window.dispatchEvent(new window.Event("resize"));
+    await twoFrames();
+    expect(viewer.pdfViewer.currentScale).toBe(0.75);
+    const layout = spyOn(viewer, "layoutChanged").and.callThrough();
+    await viewer.destroy();
+    window.dispatchEvent(new window.Event("resize"));
+    expect(layout).not.toHaveBeenCalled();
+  });
+
+  it("refits a pane when the native window changes size without user input", async () => {
+    const originalSize = await lumine.window.getSize();
+    const viewer = await open();
+    viewer.element.style.width = "60vw";
+    viewer.element.style.height = "60vh";
+    try {
+      for (const mode of ["auto-width", "page-width", "page-fit"]) {
+        if (mode === "auto-width") await viewer.setAutoWidth();
+        else viewer.setScale(mode);
+        for (const [width, height] of [
+          [originalSize.width - 40, originalSize.height - 40],
+          [originalSize.width - 140, originalSize.height - 140],
+        ]) {
+          const previousWidth = viewer.viewport.clientWidth;
+          await lumine.window.setSize(width, height);
+          await conditionPromise(
+            () => viewer.viewport.clientWidth !== previousWidth,
+            "PDF pane follows the native window size",
+          );
+          if (mode === "auto-width") await waitForWidth(viewer);
+          else await waitForPreset(viewer, mode);
+        }
+      }
+    } finally {
+      await lumine.window.setSize(originalSize.width, originalSize.height);
+    }
+  });
+
   it("leaves adaptive mode for numeric zoom, zoom commands and explicit fit presets", async () => {
     const viewer = await open(500, 500);
     for (const value of [0.75, "page-width", "page-fit", "page-actual"]) {
