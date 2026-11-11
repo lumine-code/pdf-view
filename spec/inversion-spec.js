@@ -68,10 +68,13 @@ describe("PDF color inversion through a display provider", () => {
         expect(transition).toBeDefined();
         expect(transition.effect.getTiming().duration).toBe(200);
         expect(transition.effect.getTiming().easing).toBe("ease-in-out");
-        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        transition.pause();
+        await transition.ready;
+        transition.currentTime = 100;
         const value = Number(getComputedStyle(page).filter.match(/invert\(([\d.]+)\)/)?.[1]);
         expect(value).toBeGreaterThan(0);
         expect(value).toBeLessThan(1);
+        transition.finish();
         await transition.finished;
       }
       expect(getComputedStyle(page).filter).toBe(inverted ? "invert(1)" : "none");
