@@ -10,6 +10,7 @@ describe("PDF search adapter with the shared find panel", () => {
     jasmine.useRealClock();
     lumine.config.set("pdf-view.autoRefresh", false);
     lumine.config.set("search-panel.scrollToResultOnLiveSearch", false);
+    lumine.config.set("search-panel.cleanOnHide", false);
     directory = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-view-search-"));
     const pack = await lumine.packages.activatePackage("pdf-view");
     main = pack.mainModule;
@@ -43,6 +44,12 @@ describe("PDF search adapter with the shared find panel", () => {
     await lumine.packages.deactivatePackage("search-panel");
     fs.rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
+
+  function keydown(target, key) {
+    const event = lumine.keymaps.constructor.buildKeydownEvent(key, { target });
+    lumine.keymaps.handleKeyboardEvent(event);
+    return event;
+  }
 
   it("uses the real panel options, count, navigation and PDF.js text highlights", async () => {
     const panel = searchMain.getFindView();
@@ -90,5 +97,67 @@ describe("PDF search adapter with the shared find panel", () => {
     expect(adapter.highlightMatches).toBe(false);
     expect(adapter.getCurrentResultIndex()).toBe(-1);
     expect(adapter.isPending()).toBe(false);
+  });
+
+  it("navigates a PDF with the shared search shortcuts while the panel is hidden", async () => {
+    const panel = searchMain.getFindView();
+    const adapter = viewer.getSearchAdapter();
+    searchMain.findPanel.show();
+    await panel.search("integration", { useRegex: false, caseSensitive: false, wholeWord: false });
+    await panel.findNext();
+    searchMain.findPanel.hide();
+    viewer.focus();
+    expect(searchMain.findPanel.isVisible()).toBe(false);
+    expect(document.activeElement).toBe(viewer.viewport);
+
+    for (const [key, index] of [
+      ["f3", 1],
+      ["shift-f3", 0],
+      ["shift-f3", 3],
+      ["f3", 0],
+    ]) {
+      expect(keydown(viewer.viewport, key).defaultPrevented).toBe(true);
+      await conditionPromise(
+        () => adapter.getCurrentResultIndex() === index,
+        `PDF result ${index + 1} selected with ${key}`,
+        10000,
+      );
+      expect(viewer.getCurrentPage()).toBe(index + 1);
+      expect(searchMain.findPanel.isVisible()).toBe(false);
+    }
+
+    const unrelated = document.createElement("button");
+    lumine.workspace.getElement().appendChild(unrelated);
+    try {
+      unrelated.focus();
+      expect(keydown(unrelated, "f3").defaultPrevented).toBe(false);
+      expect(adapter.getCurrentResultIndex()).toBe(0);
+    } finally {
+      unrelated.remove();
+    }
+  });
+
+  it("clears PDF results with the shared shortcut and keeps replacement unavailable", async () => {
+    const panel = searchMain.getFindView();
+    const adapter = viewer.getSearchAdapter();
+    searchMain.findPanel.show();
+    await panel.search("integration", { useRegex: false, caseSensitive: false, wholeWord: false });
+    await panel.findNext();
+    searchMain.findPanel.hide();
+    viewer.focus();
+    for (const command of ["replace-current", "replace-next", "replace-previous", "replace-all"])
+      expect(lumine.commands.canDispatch(viewer.viewport, `search-panel:${command}`)).toBe(false);
+
+    const key = process.platform === "darwin" ? "cmd-f3" : "ctrl-f3";
+    expect(keydown(viewer.viewport, key).defaultPrevented).toBe(true);
+    expect(panel.findEditor.getText()).toBe("");
+    await conditionPromise(
+      () => adapter.getResultCount() === 0 && !adapter.highlightMatches,
+      "PDF results cleared with the shared search shortcut",
+      10000,
+    );
+    expect(adapter.getCurrentResultIndex()).toBe(-1);
+    expect(viewer.pagesElement.querySelector(".textLayer .highlight")).toBeNull();
+    expect(searchMain.findPanel.isVisible()).toBe(false);
   });
 });
