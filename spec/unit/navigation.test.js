@@ -84,7 +84,7 @@ test("bookmark resolution is bounded, deduplicated, and does not request pages",
   }
 });
 
-test("returning to a pane reuses document metadata without repeating worker requests", async () => {
+test("returning to a pane synchronously publishes one complete outline without repeating worker requests", async () => {
   const { item } = fixture([{ title: "Chapter", dest: "chapter" }]);
   let outlineCalls = 0;
   let destinationCalls = 0;
@@ -109,11 +109,17 @@ test("returning to a pane reuses document metadata without repeating worker requ
   await until(() => firstHeaders[0]?.badge === 3);
   first.dispose();
   let secondHeaders;
-  const second = adapter.observeHeaders(item, (headers) => {
+  const notifications = [];
+  const second = adapter.observeHeaders(item, (headers, options) => {
     secondHeaders = headers;
+    notifications.push({ headers, options });
   });
   try {
-    await until(() => secondHeaders[0]?.badge === 3);
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0].options.loading, false);
+    assert.equal(secondHeaders[0].badge, 3);
+    await immediate();
+    assert.equal(notifications.length, 1);
     assert.equal(outlineCalls, 1);
     assert.equal(destinationCalls, 1);
     assert.equal(referenceCalls, 1);
@@ -121,6 +127,125 @@ test("returning to a pane reuses document metadata without repeating worker requ
     assert.equal(firstHeaders[0].id, secondHeaders[0].id);
   } finally {
     second.dispose();
+  }
+});
+
+test("cached outlines rebuild observer-local paths and current state without changing another observer", async () => {
+  const { item } = fixture([
+    {
+      title: "Chapter",
+      dest: [0, { name: "Fit" }],
+      items: [
+        { title: "First", dest: [0, { name: "XYZ" }, 0, 700, null] },
+        { title: "Second", dest: [0, { name: "XYZ" }, 0, 300, null] },
+      ],
+    },
+  ]);
+  item.location = { pageNumber: 1, top: 550, left: 0 };
+  const adapter = new NavigationAdapter(() => true);
+  let firstHeaders;
+  let complete = false;
+  const first = adapter.observeHeaders(item, (headers, options) => {
+    firstHeaders = headers;
+    complete = options.loading === false;
+  });
+  await until(() => complete);
+  item.location = { pageNumber: 1, top: 200, left: 0 };
+  item.getPath = () => "renamed.pdf";
+  let nextHeaders;
+  const next = adapter.observeHeaders(item, (headers) => (nextHeaders = headers));
+  try {
+    assert.equal(nextHeaders[0].children[1].currentCount, 1);
+    assert.equal(nextHeaders[0].children[0].currentCount, 0);
+    assert.equal(nextHeaders[0].stackCount, 1);
+    assert.equal(nextHeaders[0].children[1].filePath, "renamed.pdf");
+    assert.equal(nextHeaders[0].children[1].parent, nextHeaders[0]);
+    assert.equal(firstHeaders[0].children[0].currentCount, 1);
+    assert.equal(firstHeaders[0].children[1].currentCount, 0);
+    assert.equal(firstHeaders[0].children[1].filePath, "document.pdf");
+    assert.notEqual(firstHeaders[0].children[1], nextHeaders[0].children[1]);
+    assert.doesNotThrow(() => JSON.stringify(nextHeaders));
+  } finally {
+    first.dispose();
+    next.dispose();
+  }
+});
+
+test("successful empty outlines are restored synchronously", async () => {
+  const { item } = fixture([]);
+  const adapter = new NavigationAdapter(() => true);
+  let complete = false;
+  const first = adapter.observeHeaders(item, (_headers, options) => {
+    complete = options.loading === false;
+  });
+  await until(() => complete);
+  first.dispose();
+  const notifications = [];
+  const next = adapter.observeHeaders(item, (headers, options) =>
+    notifications.push({ headers, options }),
+  );
+  try {
+    assert.deepEqual(notifications, [{ headers: [], options: { loading: false } }]);
+  } finally {
+    next.dispose();
+  }
+});
+
+test("a replacement PDF cannot reuse the completed outline of its previous document", async () => {
+  const { item } = fixture([{ title: "Original", dest: [0, { name: "Fit" }] }]);
+  const adapter = new NavigationAdapter(() => true);
+  let complete = false;
+  const first = adapter.observeHeaders(item, (_headers, options) => {
+    complete = options.loading === false;
+  });
+  await until(() => complete);
+  first.dispose();
+  let resolveOutline;
+  item.pdfDocument = {
+    numPages: 2,
+    getOutline: () => new Promise((resolve) => (resolveOutline = resolve)),
+  };
+  const notifications = [];
+  const next = adapter.observeHeaders(item, (headers, options) =>
+    notifications.push({ headers, options }),
+  );
+  try {
+    assert.deepEqual(notifications, [{ headers: [], options: { loading: true } }]);
+    resolveOutline([{ title: "Replacement", dest: [1, { name: "Fit" }] }]);
+    await until(() => notifications.at(-1).options.loading === false);
+    assert.equal(notifications.at(-1).headers[0].text, "Replacement");
+    assert.equal(notifications.at(-1).headers[0].badge, 2);
+    assert.ok(notifications.every(({ headers }) => headers[0]?.text !== "Original"));
+  } finally {
+    next.dispose();
+  }
+});
+
+test("disposing an unfinished outline does not cache a partial snapshot", async () => {
+  const { item } = fixture([{ title: "Chapter", dest: "chapter" }]);
+  let resolveDestination;
+  item.pdfDocument.getDestination = () => new Promise((resolve) => (resolveDestination = resolve));
+  const adapter = new NavigationAdapter(() => true);
+  const first = adapter.observeHeaders(item, () => {});
+  await until(() => resolveDestination);
+  first.dispose();
+  const notifications = [];
+  const next = adapter.observeHeaders(item, (headers, options) =>
+    notifications.push({ headers, options }),
+  );
+  try {
+    assert.deepEqual(notifications, [{ headers: [], options: { loading: true } }]);
+    resolveDestination([4, { name: "Fit" }]);
+    await until(() => notifications.at(-1).options.loading === false);
+    assert.equal(notifications.at(-1).headers[0].badge, 5);
+    const count = notifications.length;
+    item.destroyed = true;
+    item.emit("destroy");
+    item.emit("view", { pageNumber: 5 });
+    await immediate();
+    assert.equal(notifications.length, count);
+  } finally {
+    next.dispose();
   }
 });
 

@@ -207,8 +207,8 @@ describe("PDF navigation-panel service integration", () => {
       query === "(prefers-reduced-motion: reduce)" ? { matches: false } : media(query),
     );
 
-    // Repeat the actual pointer activation, including replay from the adapter's
-    // document cache. Resolving cached destinations still publishes in batches.
+    // Repeat actual pointer activation. A resolved document must swap outlines
+    // before the pointer handler returns, without replaying loading snapshots.
     for (let repeat = 0; repeat < 2; repeat++) {
       sourcePane.activate();
       sourceView.focus();
@@ -234,6 +234,11 @@ describe("PDF navigation-panel service integration", () => {
       viewer.viewport.dispatchEvent(
         new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
       );
+      expect(service.getEditor()).toBe(viewer);
+      expect(service.getFlattenHeaders().length).toBe(96);
+      expect(service.getFlattenHeaders().every((header) => header.badge !== null)).toBe(true);
+      expect(update.calls.count()).toBe(1);
+      expect(update.calls.mostRecent().args[1].loading).toBe(false);
       await conditionPromise(
         () =>
           service.getEditor() === viewer &&
@@ -246,7 +251,7 @@ describe("PDF navigation-panel service integration", () => {
       for (let frame = 0; frame < 2; frame++)
         await new Promise((resolve) => requestAnimationFrame(resolve));
       const snapshots = update.calls.allArgs().map(([, options]) => options);
-      expect(snapshots.filter((options) => options.loading === true).length).toBeGreaterThan(3);
+      expect(snapshots.some((options) => options.loading === true)).toBe(false);
       expect(snapshots.at(-1).loading).toBe(false);
       expect(animate).not.toHaveBeenCalled();
       expect(tree.scrollAnimationID).toBeNull();
