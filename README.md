@@ -16,8 +16,8 @@ Built on Mozilla's PDF.js with native controls, document search and outline navi
 - **Scrollmap**: shows outline headings and matching pages through the shared overview widget, with only top-level headings shown by default.
 - **SyncTeX**: opens the corresponding source position from the context menu when a SyncTeX service is available.
 - **Source builds**: rebuilds the document associated with the PDF through its registered compiler provider.
-- **Auto-reload**: watches the file on disk, preserves the current view when refreshing and pauses reloads while its PDF artifact is being built.
-- **Large documents**: reads disk ranges on demand, limits page canvases and leaves page rendering to PDF.js's rendering queue.
+- **Auto-reload**: keeps the loaded PDF readable while its file is rebuilt, preserves the current view when refreshing and pauses reloads while its PDF artifact is being built.
+- **Large documents**: reads ranges from a private disk snapshot on demand, limits page canvases and leaves page rendering to PDF.js's rendering queue.
 
 ![Read a generated signal report in the PDF viewer.](.github/demo.png)
 

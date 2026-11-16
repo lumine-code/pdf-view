@@ -73,6 +73,44 @@ describe("Native PDF view", () => {
     expect(viewer.pdfViewer.currentScale).toBeCloseTo(1.5, 2);
   });
 
+  it("preserves scrolling and zoom changed while the replacement is opening", async () => {
+    await open({ pages: 5 });
+    const PdfDocument = require("../lib/document");
+    const original = PdfDocument.prototype.open;
+    let release, started;
+    const blocked = new Promise((resolve) => (release = resolve));
+    const opening = new Promise((resolve) => (started = resolve));
+    spyOn(PdfDocument.prototype, "open").and.callFake(async function (...args) {
+      const pdf = await original.apply(this, args);
+      started();
+      await blocked;
+      return pdf;
+    });
+    const pending = viewer.reload();
+    try {
+      await opening;
+      viewer.setScale(1.25);
+      viewer.goToPage(4);
+      viewer.viewport.scrollTop += 120;
+      viewer.pdfViewer.update();
+      await conditionPromise(
+        () => viewer.location?.pageNumber === 4,
+        "scrolling the previous PDF during reload",
+        10000,
+      );
+      const position = viewer.captureView();
+      release();
+      await pending;
+      expect(viewer.getCurrentPage()).toBe(4);
+      expect(viewer.pdfViewer.currentScale).toBeCloseTo(1.25, 5);
+      expect(viewer.location.left).toBeCloseTo(position.left, 0);
+      expect(viewer.location.top).toBeCloseTo(position.top, 0);
+    } finally {
+      release();
+      await pending;
+    }
+  });
+
   it("publishes loaded document metadata and retires reload observations", async () => {
     await open({ pages: 3 });
     const changed = jasmine.createSpy("PDF metadata changed");
@@ -152,6 +190,79 @@ describe("Native PDF view", () => {
     expect(viewer.pdfDocument).toBe(previous);
     expect(viewer.pagesElement.querySelector("canvas")).not.toBeNull();
     expect(viewer.error).not.toBeNull();
+    expect(await viewer.whenReady()).toBe(viewer);
+  });
+
+  it("restores a reload rejected after the native viewer accepted the replacement", async () => {
+    await open({ pages: 3 });
+    const previous = viewer.document;
+    const previousPdf = viewer.pdfDocument;
+    const original = viewer.pdfViewer.setDocument.bind(viewer.pdfViewer);
+    const failure = new Error("Native PDF installation failed");
+    let candidate;
+    spyOn(viewer.pdfViewer, "setDocument").and.callFake((pdf) => {
+      original(pdf);
+      if (pdf && pdf !== previousPdf) {
+        candidate = viewer.document;
+        throw failure;
+      }
+    });
+
+    await expectAsync(viewer.reload()).toBeRejectedWith(failure);
+
+    expect(viewer.document).toBe(previous);
+    expect(viewer.pdfDocument).toBe(previousPdf);
+    expect(viewer.pdfViewer.pdfDocument).toBe(previousPdf);
+    expect(viewer.searchAdapter.document).toBe(previousPdf);
+    expect(previous.closed).toBe(false);
+    expect(candidate.closed).toBe(true);
+    expect(await viewer.whenReady()).toBe(viewer);
+    expect(await viewer.scrollToDestination([2, { name: "Fit" }])).toBe(true);
+    expect(viewer.getCurrentPage()).toBe(3);
+  });
+
+  it("restores the previous live document when reload positioning fails", async () => {
+    await open({ pages: 3 });
+    await viewer.setAutoWidth();
+    const previous = viewer.document;
+    const failure = new Error("PDF initial positioning failed");
+    const position = spyOn(viewer, "updateAutoWidth").and.rejectWith(failure);
+
+    await expectAsync(viewer.reload()).toBeRejectedWith(failure);
+
+    expect(viewer.document).toBe(previous);
+    expect(viewer.pdfDocument).toBe(previous.pdf);
+    expect(viewer.pdfViewer.pdfDocument).toBe(previous.pdf);
+    expect(viewer.searchAdapter.document).toBe(previous.pdf);
+    expect(previous.closed).toBe(false);
+    expect(await viewer.whenReady()).toBe(viewer);
+    position.and.callThrough();
+    expect(await viewer.scrollToDestination([2, { name: "Fit" }])).toBe(true);
+  });
+
+  it("keeps a committed replacement usable when initial positioning fails", async () => {
+    await open({ pages: 3 });
+    viewer.setScale(1.25);
+    const previous = viewer.document;
+    const replacement = path.join(directory, "replacement.pdf");
+    fs.writeFileSync(replacement, createPdf({ pages: 2 }));
+    const failure = new Error("Replacement PDF positioning failed");
+    const position = spyOn(viewer, "applyHash").and.rejectWith(failure);
+
+    await expectAsync(viewer.reusePendingDocument(replacement, "#page=2")).toBeRejectedWith(
+      failure,
+    );
+
+    expect(viewer.getPath()).toBe(replacement);
+    expect(viewer.document).not.toBe(previous);
+    expect(viewer.document.closed).toBe(false);
+    expect(viewer.pdfViewer.pdfDocument).toBe(viewer.pdfDocument);
+    expect(viewer.searchAdapter.document).toBe(viewer.pdfDocument);
+    expect(previous.closed).toBe(true);
+    expect(await viewer.whenReady()).toBe(viewer);
+    position.and.callThrough();
+    expect(await viewer.scrollToDestination([1, { name: "Fit" }])).toBe(true);
+    expect(viewer.getCurrentPage()).toBe(2);
   });
 
   it("settles an interrupted initialization and releases both document generations", async () => {
