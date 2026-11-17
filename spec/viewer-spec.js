@@ -86,6 +86,10 @@ describe("Native PDF view", () => {
       await blocked;
       return pdf;
     });
+    let publishedView;
+    const publication = viewer.onDidLoad(() => {
+      publishedView = viewer.captureView();
+    });
     const pending = viewer.reload();
     try {
       await opening;
@@ -105,7 +109,10 @@ describe("Native PDF view", () => {
       expect(viewer.pdfViewer.currentScale).toBeCloseTo(1.25, 5);
       expect(viewer.location.left).toBeCloseTo(position.left, 0);
       expect(viewer.location.top).toBeCloseTo(position.top, 0);
+      expect(publishedView?.left).toBeCloseTo(position.left, 0);
+      expect(publishedView?.top).toBeCloseTo(position.top, 0);
     } finally {
+      publication.dispose();
       release();
       await pending;
     }
