@@ -93,7 +93,7 @@ describe("PDF navigation-panel service integration", () => {
     );
   }, 30000);
 
-  it("smoothly follows a long PDF outline without rebuilding its rows on scroll", async () => {
+  it("publishes a complete long PDF outline and follows it without rebuilding rows on scroll", async () => {
     const file = path.join(directory, "long-outline.pdf");
     fs.writeFileSync(
       file,
@@ -106,19 +106,43 @@ describe("PDF navigation-panel service integration", () => {
       }),
     );
     const main = lumine.packages.getActivePackage("pdf-view").mainModule;
-    viewer = main.createViewer(file);
-    viewer.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
-    await lumine.workspace.open(viewer);
-    await viewer.whenReady();
-    lumine.commands.dispatch(viewer.viewport, "navigation-panel:open");
     const service = navigation.provideNavigationHeaders();
-    await conditionPromise(
-      () =>
-        service.getFlattenHeaders().length === 64 &&
-        service.getFlattenHeaders().every((header) => header.badge !== null),
-      "resolved long PDF outline",
-      15000,
-    );
+    const publications = [];
+    const observation = service.onDidUpdateHeaders((item) => {
+      if (item !== viewer) return;
+      publications.push(
+        service.getFlattenHeaders().map((header) => ({
+          text: header.text,
+          badge: header.badge,
+          row: header.startPoint?.row,
+        })),
+      );
+    });
+    try {
+      viewer = main.createViewer(file);
+      viewer.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
+      await lumine.workspace.open(viewer);
+      await viewer.whenReady();
+      lumine.commands.dispatch(viewer.viewport, "navigation-panel:open");
+      await conditionPromise(
+        () =>
+          service.getFlattenHeaders().length === 64 &&
+          service.getFlattenHeaders().every((header) => header.badge !== null),
+        "resolved long PDF outline",
+        15000,
+      );
+    } finally {
+      observation.dispose();
+    }
+    expect(publications[0]).toEqual([]);
+    const completed = publications.filter((headers) => headers.length > 0);
+    expect(completed.length).toBeGreaterThan(0);
+    const expected = Array.from({ length: 64 }, (_, index) => ({
+      text: `Section ${index + 1}`,
+      badge: index + 1,
+      row: index,
+    }));
+    for (const headers of completed) expect(headers).toEqual(expected);
     const tree = navigation.navigationTree;
     tree.element.style.height = "240px";
     await new Promise((resolve) => requestAnimationFrame(resolve));

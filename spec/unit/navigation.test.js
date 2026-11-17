@@ -19,6 +19,7 @@ function fixture(outline) {
     whenReady: () => Promise.resolve(),
     onDidLoad: (callback) => watch("load", callback),
     onDidChangeView: (callback) => watch("view", callback),
+    onDidChangePath: (callback) => watch("path", callback),
     onDidDestroy: (callback) => watch("destroy", callback),
     emit(event, data) {
       for (const callback of callbacks.get(event) || []) callback(data);
@@ -104,10 +105,73 @@ test("bookmark resolution is bounded, deduplicated, and does not request pages",
     assert.equal(referenceCalls, 20);
     assert.ok(maximum <= 4);
     assert.equal(updates.at(-1)[79].badge, 20);
-    assert.ok(notifications.length > 4);
-    assert.ok(notifications.slice(0, -1).every(({ options }) => options.loading === true));
+    assert.equal(notifications.length, 2);
+    assert.deepEqual(notifications[0].headers, []);
+    assert.equal(notifications[0].options.loading, true);
     assert.equal(notifications.at(-1).options.loading, false);
+    assert.equal(notifications.at(-1).options.stateChanges, undefined);
     assert.ok(notifications.every(({ options }) => options.instant === undefined));
+  } finally {
+    subscription.dispose();
+  }
+});
+
+test("keeps pending metadata private and publishes the latest view and path in one complete outline", async () => {
+  const { item, notifications, observe } = fixture(
+    Array.from({ length: 40 }, (_, index) => ({
+      title: `Section ${index}`,
+      dest: index === 39 ? "last" : [index, { name: "Fit" }],
+    })),
+  );
+  let resolveDestination;
+  item.pdfDocument.getDestination = () => new Promise((resolve) => (resolveDestination = resolve));
+  const subscription = observe();
+  try {
+    await until(() => resolveDestination);
+    assert.equal(notifications.length, 1);
+    item.emit("view", { location: { pageNumber: 5, top: 1000, left: 0 } });
+    item.getPath = () => "renamed.pdf";
+    item.emit("path");
+    assert.equal(notifications.length, 1);
+    assert.deepEqual(notifications[0].headers, []);
+
+    resolveDestination([39, { name: "Fit" }]);
+    await until(() => notifications.at(-1).options.loading === false);
+    assert.equal(notifications.length, 2);
+    const { headers, options } = notifications.at(-1);
+    assert.equal(options.stateChanges, undefined);
+    assert.deepEqual(
+      headers.map((header) => header.badge),
+      Array.from({ length: 40 }, (_, i) => i + 1),
+    );
+    assert.ok(headers.every((header) => header.filePath === "renamed.pdf"));
+    assert.equal(headers[4].currentCount, 1);
+    assert.equal(headers[4].visibility, 1);
+    assert.equal(headers[0].currentCount, 0);
+  } finally {
+    subscription.dispose();
+  }
+});
+
+test("publishes usable siblings once even when some bookmarks cannot be resolved", async () => {
+  const { item, notifications, observe } = fixture([
+    { title: "Valid", dest: [4, { name: "Fit" }] },
+    { title: "Broken", dest: "missing" },
+    { title: "Outside document", dest: [100, { name: "Fit" }] },
+    { title: "No destination", dest: null },
+  ]);
+  item.pdfDocument.getDestination = async () => {
+    throw new Error("Missing destination");
+  };
+  const subscription = observe();
+  try {
+    await until(() => notifications.at(-1).options.loading === false);
+    assert.equal(notifications.length, 2);
+    assert.deepEqual(
+      notifications.at(-1).headers.map((header) => header.badge),
+      [5, null, null, null],
+    );
+    assert.equal(notifications.at(-1).options.stateChanges, undefined);
   } finally {
     subscription.dispose();
   }
