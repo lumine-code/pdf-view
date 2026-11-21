@@ -2,7 +2,7 @@
   "title": "pdf-view",
   "description": "Read a generated signal report in the PDF viewer.",
   "recordedOn": "2026-11-21",
-  "sourceRevision": "670a4e93d35970bb0812a9087a1da23349c9d576",
+  "sourceRevision": "a7ff3de67c0b7376046103173e578e37bf56c49d",
   "themeSourceRevision": "e477cb9a3576f124b0d415183e8d608fbae0182e",
   "mode": "normal",
   "fontSettings": "default",
@@ -29,14 +29,14 @@
       "workingTreeHash": "cc4aac29731b750f6dae1bbbdee78ff23b50366519c108e55762d9b40ed06b30"
     },
     "package": {
-      "revision": "670a4e93d35970bb0812a9087a1da23349c9d576",
+      "revision": "a7ff3de67c0b7376046103173e578e37bf56c49d",
       "dirty": true,
-      "workingTreeHash": "4bef7c4ea15d43385d327d451b2d1a560ed304fe32d3ccec00e432d7d5c8a45b"
+      "workingTreeHash": "1182521de9b0b322e8aaf4db6a836f8a3372cb2186cfb82efe05fa23a4c06a2f"
     },
     "pdf-view": {
-      "revision": "670a4e93d35970bb0812a9087a1da23349c9d576",
+      "revision": "a7ff3de67c0b7376046103173e578e37bf56c49d",
       "dirty": true,
-      "workingTreeHash": "4bef7c4ea15d43385d327d451b2d1a560ed304fe32d3ccec00e432d7d5c8a45b"
+      "workingTreeHash": "1182521de9b0b322e8aaf4db6a836f8a3372cb2186cfb82efe05fa23a4c06a2f"
     },
     "one-theme": {
       "revision": "e477cb9a3576f124b0d415183e8d608fbae0182e",
