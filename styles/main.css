@@ -14,6 +14,7 @@
   overscroll-behavior: contain;
   outline: none;
   background-color: var(--app-background-color);
+  anchor-scope: all;
 }
 
 .pdf-view .pdfViewer {
@@ -24,6 +25,20 @@
 .pdf-view .pdfViewer .page {
   --page-bg-color: white;
   transition: filter 200ms ease-in-out;
+}
+
+.pdf-view .pdf-view-page-frames {
+  display: contents;
+}
+
+.pdf-view .pdf-view-page-frame {
+  position: absolute;
+  inset: anchor(top) anchor(right) anchor(bottom) anchor(left);
+  z-index: 1;
+  position-visibility: anchors-valid;
+  outline: 1px solid var(--base-border-color);
+  outline-offset: -1px;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
