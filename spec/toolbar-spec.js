@@ -137,12 +137,16 @@ describe("PDF viewing controls", () => {
     expect(button.classList.contains("selected")).toBe(true);
     expect(button.dataset.zoomMode).toBe("auto-width");
     keymapEvent(viewer.viewport, "f");
-    await conditionPromise(() => viewer.pdfViewer.currentScaleValue === "page-fit");
+    await conditionPromise(
+      () => viewer.getViewState().scaleValue === "page-fit" && !viewer.zoomAnimation.active,
+    );
     const fit = getComputedStyle(button).backgroundColor;
     expect(button.dataset.zoomMode).toBe("page-fit");
     expect(button.classList.contains("selected")).toBe(false);
     keymapEvent(viewer.viewport, "w");
-    await conditionPromise(() => viewer.pdfViewer.currentScaleValue === "page-width");
+    await conditionPromise(
+      () => viewer.getViewState().scaleValue === "page-width" && !viewer.zoomAnimation.active,
+    );
     const width = getComputedStyle(button).backgroundColor;
     expect(button.dataset.zoomMode).toBe("page-width");
     expect(fit).not.toBe(width);

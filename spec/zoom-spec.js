@@ -164,8 +164,8 @@ describe("PDF adaptive width zoom", () => {
     viewer.element.style.width = "350px";
     window.dispatchEvent(new window.Event("resize"));
     await waitForWidth(viewer);
-    for (const preset of ["page-width", "page-fit", "page-height", "auto"]) {
-      viewer.setScale(preset);
+    for (const preset of ["page-width", "page-fit", "page-height", "auto-width"]) {
+      viewer.setScale(preset === "auto-width" ? "auto" : preset);
       viewer.element.style.width = "520px";
       viewer.element.style.height = "700px";
       window.dispatchEvent(new window.Event("resize"));
@@ -259,40 +259,42 @@ describe("PDF adaptive width zoom", () => {
     expect(copy.getViewState().scale).toBeLessThan(1);
   });
 
-  async function waitForPreset(viewer, preset) {
-    await conditionPromise(
-      () => viewer.pdfViewer.currentScaleValue === preset && !viewer.zoomAnimation.active,
-      `retained PDF fit preset ${preset}`,
-      1500,
-    );
-    const page = await viewer.pdfDocument.getPage(viewer.getCurrentPage());
-    const size = page.getViewport({
-      scale: 96 / 72,
-      rotation: page.rotate + viewer.pdfViewer.pagesRotation,
-    });
+  async function waitForPreset(viewer, preset, pageNumber = viewer.getCurrentPage()) {
+    const page = await viewer.pdfDocument.getPage(pageNumber);
     const expected = () => {
+      const size = page.getViewport({
+        scale: 96 / 72,
+        rotation: (page.rotate + viewer.pdfViewer.pagesRotation) % 360,
+      });
       const width = viewer.viewport.clientWidth / size.width;
       const height = viewer.viewport.clientHeight / size.height;
-      if (preset === "page-actual") return 1;
+      if (preset === "auto-width") return Math.min(1, width);
       if (preset === "page-width") return width;
       if (preset === "page-height") return height;
-      if (preset === "page-fit") return Math.min(width, height);
-      return Math.min(1.25, size.width <= size.height ? width : Math.min(width, height));
+      return Math.min(width, height);
     };
     await conditionPromise(
-      () => Math.abs(viewer.pdfViewer.currentScale - expected()) < 0.0001,
-      `resized PDF fit scale ${preset}`,
+      () => {
+        const { page, scale, zoomMode, scaleValue } = viewer.getViewState();
+        return (
+          page === pageNumber &&
+          (zoomMode || scaleValue) === preset &&
+          !viewer.zoomAnimation.active &&
+          Math.abs(scale - expected()) < 0.0001
+        );
+      },
+      `PDF fit scale ${preset} for page ${pageNumber}`,
       1500,
     ).catch((error) => {
       throw new Error(
-        `${error.message}: actual=${viewer.pdfViewer.currentScale}, expected=${expected()}, retained=${viewer.scalePreset}, available=${viewer.availableDimensions}, size=${viewer.viewport.clientWidth}:${viewer.viewport.clientHeight}`,
+        `${error.message}: page=${viewer.getCurrentPage()}, actual=${viewer.pdfViewer.currentScale}, expected=${expected()}, retained=${viewer.getViewState().zoomMode || viewer.getViewState().scaleValue}, size=${viewer.viewport.clientWidth}:${viewer.viewport.clientHeight}`,
       );
     });
   }
 
   it("recalculates named fit modes on width and height changes while keeping actual size fixed", async () => {
     const viewer = await open(1000, 800);
-    for (const preset of ["page-width", "page-fit", "page-height", "auto", "page-actual"]) {
+    for (const preset of ["page-width", "page-fit", "page-height"]) {
       viewer.element.style.width = "1000px";
       viewer.element.style.height = "800px";
       viewer.layoutChanged();
@@ -304,24 +306,39 @@ describe("PDF adaptive width zoom", () => {
       viewer.layoutChanged();
       await waitForPreset(viewer, preset);
       expect(viewer.captureView().scaleValue).toBe(preset);
-      if (preset === "page-actual") expect(viewer.pdfViewer.currentScale).toBe(1);
     }
+    viewer.setScale("page-actual");
+    viewer.element.style.width = "1400px";
+    viewer.element.style.height = "900px";
+    viewer.layoutChanged();
+    await twoFrames();
+    expect(viewer.getViewState().scale).toBe(1);
   });
 
-  it("retains a requested fit mode when resize interrupts pending geometry or a zoom animation", async () => {
-    const viewer = await open(1000, 800);
-    let resolveScale;
-    const preset = spyOn(viewer, "getPresetScale").and.returnValue(
-      new Promise((resolve) => (resolveScale = resolve)),
+  function holdUnvisitedGeometry(viewer, pageNumber) {
+    viewer.setScale(1);
+    expect(viewer.pdfViewer.getPageView(pageNumber - 1).pdfPage).toBeFalsy();
+    let resolvePage;
+    const geometry = spyOn(viewer, "ensurePageGeometry").and.returnValue(
+      new Promise((resolve) => (resolvePage = resolve)),
     );
+    // Select the lazy placeholder without the normal navigation prefetch.
+    viewer.pdfViewer.currentPageNumber = pageNumber;
+    return { geometry, release: resolvePage };
+  }
+
+  it("retains a requested fit mode when resize interrupts pending geometry or a zoom animation", async () => {
+    const viewer = await open(1000, 800, { pages: 8 });
+    const { geometry, release } = holdUnvisitedGeometry(viewer, 8);
     const pending = viewer.setScale("page-fit", { smooth: true });
+    expect(geometry).toHaveBeenCalledWith(8);
     expect(viewer.captureView().scaleValue).toBe("page-fit");
+    geometry.and.callThrough();
     viewer.element.style.height = "300px";
     viewer.layoutChanged();
-    resolveScale(0.75);
+    release(await viewer.pdfDocument.getPage(8));
     await pending;
-    preset.and.callThrough();
-    await waitForPreset(viewer, "page-fit");
+    await waitForPreset(viewer, "page-fit", 8);
 
     setMotion(viewer);
     viewer.setScale(1);
@@ -331,7 +348,7 @@ describe("PDF adaptive width zoom", () => {
     viewer.element.style.width = "410px";
     viewer.layoutChanged();
     await animating;
-    await waitForPreset(viewer, "page-width");
+    await waitForPreset(viewer, "page-width", 8);
     expect(viewer.getViewState().scaleValue).toBe("page-width");
   });
 
@@ -373,44 +390,142 @@ describe("PDF adaptive width zoom", () => {
     expect(viewer.pdfViewer.pagesRotation).toBe(90);
   });
 
-  it("ignores a late geometry request after a manual zoom or document change", async () => {
-    const viewer = await open();
-    let resolvePage;
-    const request = new Promise((resolve) => {
-      resolvePage = resolve;
+  for (const [command, preset] of [
+    ["automatic-zoom", "auto-width"],
+    ["fit-width", "page-width"],
+    ["fit-to-view", "page-fit"],
+  ]) {
+    it(`keeps ${command} fitted to the active mixed-size page through navigation`, async () => {
+      const pageSizes = Array.from({ length: 8 }, () => [612, 792]);
+      pageSizes[6] = [2400, 400];
+      const viewer = await open(620, 350, { pageSizes });
+      const wide = viewer.pdfViewer.getPageView(6);
+      await viewer.executeCommand(command);
+      await waitForPreset(viewer, preset, 1);
+      expect(wide.pdfPage).toBeFalsy();
+
+      await viewer.goToPage(7);
+      await waitForPreset(viewer, preset, 7);
+      expect(
+        Math.abs(centerX(wide.div.getBoundingClientRect()) - viewportCenterX(viewer.viewport)),
+      ).toBeLessThan(1);
+      expect(viewer.pdfViewer.getPageView(4).pdfPage).toBeFalsy();
+
+      viewer.executeCommand("rotate-clockwise");
+      await waitForPreset(viewer, preset, 7);
+      viewer.element.style.width = "480px";
+      viewer.element.style.height = "510px";
+      await waitForPreset(viewer, preset, 7);
+
+      viewer.viewport.scrollTop = 0;
+      await waitForPreset(viewer, preset, 1);
     });
-    const pdf = { getPage: jasmine.createSpy("getPage").and.returnValue(request) };
-    const apply = jasmine.createSpy("apply scale");
-    const context = {
-      pdfDocument: pdf,
-      generation: 1,
-      zoomMode: "auto-width",
-      zoomUpdateRevision: 0,
-      destroyed: false,
-      getCurrentPage: () => 7,
-      hasLayout: () => true,
-      viewport: { clientWidth: 400 },
-      pdfViewer: {
-        getPageView: () => null,
-        pagesRotation: 0,
-        set currentScaleValue(value) {
-          apply(value);
-        },
-      },
-    };
-    const pending = viewer.updateAutoWidth.call(context);
-    expect(pdf.getPage).toHaveBeenCalledOnceWith(7);
-    context.zoomMode = null;
-    context.zoomUpdateRevision++;
-    resolvePage({ rotate: 0, getViewport: () => ({ width: 800 }) });
-    await pending;
-    expect(apply).not.toHaveBeenCalled();
-    context.zoomMode = "auto-width";
-    const replacement = viewer.updateAutoWidth.call(context);
-    context.generation++;
-    await replacement;
-    expect(apply).not.toHaveBeenCalled();
+  }
+
+  for (const [command, preset] of [
+    ["automatic-zoom", "auto-width"],
+    ["fit-width", "page-width"],
+  ]) {
+    it(`preserves the reading position under ${command} when the pane gets narrower`, async () => {
+      const viewer = await open(620, 350, {
+        pageSizes: [
+          [2400, 400],
+          [400, 960],
+          [612, 792],
+        ],
+      });
+      const { viewport } = viewer;
+      await viewer.executeCommand(command);
+      await viewer.goToPage(2);
+      await waitForPreset(viewer, preset, 2);
+      const page = viewer.pdfViewer.getPageView(1).div;
+      viewport.scrollTop = page.offsetTop + 400;
+      viewer.pdfViewer.update();
+      const readingY = () =>
+        pdfPoint(viewer, viewportCenterX(viewport), viewport.getBoundingClientRect().top, 1)[1];
+      const before = readingY();
+
+      viewer.element.style.width = "420px";
+      await waitForPreset(viewer, preset, 2);
+      expect(Math.abs(readingY() - before)).toBeLessThan(2);
+    });
+  }
+
+  it("fits a short page at the top when scrolling back from a larger sheet", async () => {
+    const viewer = await open(620, 350, {
+      pageSizes: [
+        [612, 792],
+        [300, 60],
+        [1000, 1600],
+      ],
+    });
+    await viewer.goToPage(2);
+    await viewer.goToPage(3);
+    await waitForPreset(viewer, "auto-width", 3);
+    viewer.viewport.scrollTop = viewer.pdfViewer.getPageView(1).div.offsetTop + 8;
+    await waitForPreset(viewer, "auto-width", 2);
+
+    viewer.viewport.scrollTop = viewer.pdfViewer.getPageView(2).div.offsetTop + 8;
+    await waitForPreset(viewer, "auto-width", 3);
   });
+
+  it("reveals the entire active sheet when fitting from a clipped view", async () => {
+    const viewer = await open(620, 350, {
+      pageSizes: [
+        [2400, 400],
+        [612, 792],
+        [612, 792],
+      ],
+    });
+    viewer.setScale(2);
+    await viewer.goToPage(2);
+    const { viewport } = viewer;
+    const page = viewer.pdfViewer.getPageView(1).div;
+    viewport.scrollTop += 400;
+    viewport.scrollLeft += 120;
+    viewer.pdfViewer.update();
+    expect(viewer.getCurrentPage()).toBe(2);
+
+    await viewer.executeCommand("fit-to-view");
+    await waitForPreset(viewer, "page-fit", 2);
+    const { left, top, right, bottom } = page.getBoundingClientRect();
+    const bounds = viewport.getBoundingClientRect();
+    expect(left).toBeGreaterThanOrEqual(bounds.left - 1);
+    expect(right).toBeLessThanOrEqual(bounds.left + viewport.clientWidth + 1);
+    expect(top).toBeGreaterThanOrEqual(bounds.top - 1);
+    expect(bottom).toBeLessThanOrEqual(bounds.top + viewport.clientHeight + 1);
+  });
+
+  for (const [action, supersede] of [
+    ["manual zoom", (viewer) => viewer.setScale(0.75)],
+    ["document reload", (viewer) => viewer.reload()],
+  ]) {
+    it(`ignores fit geometry returned after a ${action}`, async () => {
+      const pageSizes = Array.from({ length: 8 }, () => [612, 792]);
+      pageSizes[7] = [2400, 400];
+      const viewer = await open(650, 500, { pageSizes });
+      const obsoletePage = await viewer.pdfDocument.getPage(1);
+      const { geometry, release } = holdUnvisitedGeometry(viewer, 8);
+      const pending = viewer.executeCommand("automatic-zoom");
+      expect(geometry).toHaveBeenCalledWith(8);
+      geometry.and.callThrough();
+
+      try {
+        await supersede(viewer);
+        if (action === "document reload") {
+          await twoFrames();
+          await waitForPreset(viewer, "auto-width", 8);
+        }
+        const state = viewer.getViewState();
+        release(obsoletePage);
+        await pending;
+        await twoFrames();
+        expect(viewer.getViewState()).toEqual(state);
+      } finally {
+        release(obsoletePage);
+      }
+    });
+  }
 
   function setMotion(viewer, reduced = false) {
     const native = viewer.zoomAnimation.window.matchMedia.bind(viewer.zoomAnimation.window);
@@ -493,7 +608,7 @@ describe("PDF adaptive width zoom", () => {
     const scaled = updates.calls.allArgs().filter(([options]) => options.scale > 0);
     expect(scaled.every(([options]) => options.drawingDelay > 0)).toBe(true);
     await viewer.setScale("page-width", { smooth: true });
-    expect(viewer.pdfViewer.currentScaleValue).toBe("page-width");
+    expect(viewer.getViewState().scaleValue).toBe("page-width");
   });
 
   it("accumulates wheel bursts and keeps the PDF point under the pointer fixed on both axes", async () => {
@@ -781,13 +896,41 @@ describe("PDF adaptive width zoom", () => {
     const viewer = await open(650, 500);
     setMotion(viewer);
     viewer.setScale(1.5);
-    viewer.zoomMode = "auto-width";
-    viewer.scheduleAutoWidth();
+    viewer.adaptiveZoom.setMode("auto-width", viewer.getCurrentPage());
+    viewer.adaptiveZoom.schedule();
     const pending = viewer.setAutoWidth({ smooth: true });
     await Promise.resolve();
     expect(viewer.zoomAnimation.active).toBe(true);
     await pending;
     await waitForWidth(viewer);
+  });
+
+  it("finishes fitting when ordinary wheel input interrupts it at a scroll boundary", async () => {
+    const viewer = await open(650, 500);
+    setMotion(viewer);
+    viewer.setScale(2);
+    const clock = useZoomClock(viewer);
+    try {
+      const fitting = viewer.executeCommand("fit-to-view");
+      clock.frame(30);
+      expect(viewer.zoomAnimation.active).toBe(true);
+      viewer.handleWheel(new WheelEvent("wheel", { deltaY: -50 }));
+      await fitting;
+      await waitForPreset(viewer, "page-fit");
+      expect(viewer.zoomAnimation.active).toBe(false);
+    } finally {
+      clock.restore();
+    }
+  });
+
+  it("keeps an explicit zoom link on an existing PDF after the pane resizes", async () => {
+    const viewer = await open(650, 500, { pages: 3 });
+    expect(viewer.getViewState().zoomMode).toBe("auto-width");
+    await viewer.applyHash("#page=2&zoom=35");
+    viewer.element.style.width = "280px";
+    await twoFrames();
+    expect(viewer.getViewState().zoomMode).toBeNull();
+    expect(viewer.getViewState().scale).toBeCloseTo(0.35, 8);
   });
 
   it("honors reduced motion and leaves ordinary scrolling alone", async () => {

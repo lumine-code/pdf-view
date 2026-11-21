@@ -233,7 +233,7 @@ describe("Native PDF view", () => {
     await viewer.setAutoWidth();
     const previous = viewer.document;
     const failure = new Error("PDF initial positioning failed");
-    const position = spyOn(viewer, "updateAutoWidth").and.rejectWith(failure);
+    const position = spyOn(viewer.adaptiveZoom, "update").and.rejectWith(failure);
 
     await expectAsync(viewer.reload()).toBeRejectedWith(failure);
 
