@@ -33,23 +33,9 @@ describe("PDF adaptive width zoom", () => {
     return viewer;
   }
 
-  async function open(width = 1000, height = 500, mixed = false, pages = 1) {
+  async function open(width = 1000, height = 500, fixture = {}) {
     const file = path.join(directory, "zoom.pdf");
-    let contents = createPdf({ pages: mixed ? 2 : pages });
-    if (mixed) {
-      // Keep byte lengths and xref offsets intact while making page two wider
-      // and shorter than page one. Both dimensions remain three digits.
-      let occurrence = 0;
-      contents = Buffer.from(
-        contents
-          .toString("latin1")
-          .replaceAll("/MediaBox [0 0 612 792]", (value) =>
-            ++occurrence === 2 ? "/MediaBox [0 0 999 400]" : value,
-          ),
-        "latin1",
-      );
-    }
-    fs.writeFileSync(file, contents);
+    fs.writeFileSync(file, createPdf(fixture));
     return attach(main.createViewer(file), width, height);
   }
 
@@ -365,7 +351,12 @@ describe("PDF adaptive width zoom", () => {
   });
 
   it("uses the selected page's real dimensions and rotation in a mixed-size PDF", async () => {
-    const viewer = await open(500, 500, true);
+    const viewer = await open(500, 500, {
+      pageSizes: [
+        [612, 792],
+        [999, 400],
+      ],
+    });
     await viewer.executeCommand("automatic-zoom");
     const firstScale = viewer.getViewState().scale;
     viewer.goToPage(2);
@@ -466,8 +457,8 @@ describe("PDF adaptive width zoom", () => {
     };
   }
 
-  function pdfPoint(viewer, x, y) {
-    const page = viewer.pdfViewer.getPageView(0);
+  function pdfPoint(viewer, x, y, pageIndex = 0) {
+    const page = viewer.pdfViewer.getPageView(pageIndex);
     const rect = page.div.getBoundingClientRect();
     return page.viewport.convertToPdfPoint(
       ((x - rect.left) * page.viewport.width) / rect.width,
@@ -506,7 +497,7 @@ describe("PDF adaptive width zoom", () => {
   });
 
   it("accumulates wheel bursts and keeps the PDF point under the pointer fixed on both axes", async () => {
-    const viewer = await open(650, 500, false, 40);
+    const viewer = await open(650, 500, { pages: 40 });
     setMotion(viewer);
     viewer.element.style.left = "130px";
     viewer.element.style.top = "70px";
@@ -551,6 +542,187 @@ describe("PDF adaptive width zoom", () => {
     expect(viewer.viewport.scrollTop).toBeGreaterThan(startTop);
     expect(renderedPages.size).toBeLessThan(5);
     expect(viewer.pagesElement.querySelectorAll("canvas").length).toBeLessThan(6);
+  });
+
+  async function openMixedWidths() {
+    const viewer = await open(650, 240, {
+      pageSizes: [
+        [360, 792],
+        [2400, 400],
+      ],
+    });
+    await viewer.goToPage(2);
+    await waitForWidePage(viewer);
+    return viewer;
+  }
+
+  function waitForWidePage(viewer) {
+    return conditionPromise(
+      () => Boolean(viewer.pdfViewer.getPageView(1)?.pdfPage),
+      "PDF.js has loaded the wide sheet's real dimensions",
+    );
+  }
+
+  function centerX({ left, width }) {
+    return left + width / 2;
+  }
+
+  function viewportCenterX(viewport) {
+    return viewport.getBoundingClientRect().left + viewport.clientWidth / 2;
+  }
+
+  it("keeps the opening page centered when PDF.js discovers a wider sheet", async () => {
+    const viewer = await open(650, 240, {
+      pageSizes: [
+        [360, 120],
+        [2400, 400],
+      ],
+    });
+    await waitForWidePage(viewer);
+    const narrow = viewer.pdfViewer.getPageView(0).div;
+    await conditionPromise(
+      () =>
+        Math.abs(centerX(narrow.getBoundingClientRect()) - viewportCenterX(viewer.viewport)) < 1,
+      "the narrow opening page is still on screen",
+    );
+    expect(viewer.getCurrentPage()).toBe(1);
+  });
+
+  it("keeps mixed-width pages aligned while zooming past the pane width and panning", async () => {
+    const viewer = await openMixedWidths();
+    setMotion(viewer);
+    const { viewport } = viewer;
+    const narrow = viewer.pdfViewer.getPageView(0).div;
+    const wide = viewer.pdfViewer.getPageView(1).div;
+    const expectAligned = () => {
+      expect(centerX(narrow.getBoundingClientRect())).toBeCloseTo(
+        centerX(wide.getBoundingClientRect()),
+        0,
+      );
+    };
+
+    const start = 0.17;
+    const end = 0.35;
+    viewer.setScale(start);
+    await viewer.goToPage(2);
+    expect(viewport.scrollWidth).toBe(viewport.clientWidth);
+    expectAligned();
+    const x = viewportCenterX(viewport) - 125;
+    const y = wide.getBoundingClientRect().top + 35;
+    const before = pdfPoint(viewer, x, y, 1);
+    const expectAnchored = () => {
+      const [pdfX, pdfY] = pdfPoint(viewer, x, y, 1);
+      expect(Math.abs(pdfX - before[0])).toBeLessThan(2);
+      expect(Math.abs(pdfY - before[1])).toBeLessThan(2);
+    };
+
+    const clock = useZoomClock(viewer);
+    try {
+      const finished = viewer.handleWheel(
+        new WheelEvent("wheel", {
+          ctrlKey: true,
+          deltaY: Math.log(start / end) / 0.002,
+          clientX: x,
+          clientY: y,
+          cancelable: true,
+        }),
+      );
+      clock.frame(10);
+      expectAligned();
+      clock.frame(50);
+      expect(viewport.scrollWidth).toBeGreaterThan(viewport.clientWidth);
+      expectAligned();
+      expectAnchored();
+      clock.frame(150);
+      await finished;
+    } finally {
+      clock.restore();
+    }
+    expectAligned();
+    expectAnchored();
+
+    const left = viewport.scrollLeft;
+    await viewer.executeCommand("scroll-right");
+    expect(viewport.scrollLeft).toBeGreaterThan(left);
+    expectAligned();
+    const pannedLeft = viewport.scrollLeft;
+    const top = viewport.scrollTop;
+    await viewer.executeCommand("scroll-up");
+    expect(viewport.scrollTop).toBeLessThan(top);
+    expect(viewport.scrollLeft).toBe(pannedLeft);
+    expectAligned();
+  });
+
+  for (const [action, reveal] of [
+    ["navigating explicitly", (viewer) => viewer.goToPage(1)],
+    ["scrolling vertically", (viewer) => (viewer.viewport.scrollTop = 0)],
+  ]) {
+    it(`reveals a narrow page outside the horizontal viewport when ${action}`, async () => {
+      const viewer = await openMixedWidths();
+      const { viewport } = viewer;
+      const narrow = viewer.pdfViewer.getPageView(0).div;
+      viewer.setScale(1);
+      await viewer.goToPage(2);
+      viewport.scrollLeft = 0;
+      await twoFrames();
+      expect(narrow.getBoundingClientRect().left).toBeGreaterThan(
+        viewport.getBoundingClientRect().left + viewport.clientWidth,
+      );
+
+      await reveal(viewer);
+      await conditionPromise(
+        () =>
+          viewer.getCurrentPage() === 1 &&
+          Math.abs(centerX(narrow.getBoundingClientRect()) - viewportCenterX(viewport)) < 1,
+        "the narrow PDF page is centered after moving out of the wide sheet",
+      );
+    });
+  }
+
+  it("keeps the horizontal pan when jumping to an unvisited wide sheet", async () => {
+    const pageSizes = Array.from({ length: 8 }, () => [360, 792]);
+    pageSizes[1] = [2400, 400];
+    pageSizes[7] = [2400, 400];
+    const viewer = await open(650, 240, { pageSizes });
+    viewer.setScale(1);
+    await viewer.goToPage(2);
+    await waitForWidePage(viewer);
+    await twoFrames();
+
+    const target = viewer.pdfViewer.getPageView(7);
+    expect(target.pdfPage).toBeFalsy();
+    viewer.viewport.scrollLeft = 137;
+    await viewer.goToPage(8);
+    await conditionPromise(
+      () => Boolean(target.pdfPage) && viewer.getCurrentPage() === 8,
+      "the wide destination page is loaded and visible",
+    );
+    expect(viewer.viewport.scrollLeft).toBe(137);
+  });
+
+  it("restores the mixed-width scroll origin when a different page supplies the toolbar number", async () => {
+    const viewer = await openMixedWidths();
+    const { viewport } = viewer;
+    viewer.setScale(0.35);
+    const wide = viewer.pdfViewer.getPageView(1).div;
+    viewport.scrollLeft = (viewport.scrollWidth - viewport.clientWidth) / 2 + 45;
+    viewport.scrollTop = wide.offsetTop - 50;
+    viewer.pdfViewer.update();
+
+    const saved = viewer.captureView();
+    expect(saved.page).toBe(2);
+    expect(saved.positionPage).toBe(1);
+    const { scrollLeft, scrollTop } = viewport;
+    function expectRestored(restored) {
+      expect(restored.getCurrentPage()).toBe(2);
+      expect(Math.abs(restored.viewport.scrollLeft - scrollLeft)).toBeLessThan(1);
+      expect(Math.abs(restored.viewport.scrollTop - scrollTop)).toBeLessThan(1);
+    }
+
+    await viewer.reload();
+    expectRestored(viewer);
+    const copy = await attach(viewer.copy(), 650, 240);
+    expectRestored(copy);
   });
 
   it("preserves fractional intermediate scales during a small zoom", async () => {
@@ -635,7 +807,7 @@ describe("PDF adaptive width zoom", () => {
   });
 
   it("cancels animation on manual scale, page changes, reload and destruction", async () => {
-    const viewer = await open(650, 500, false, 3);
+    const viewer = await open(650, 500, { pages: 3 });
     setMotion(viewer);
     viewer.setScale(1);
     const manual = viewer.setScale(3, { smooth: true });

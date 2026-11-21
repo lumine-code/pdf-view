@@ -15,6 +15,9 @@ function makeView(pages, options = {}) {
       dispatch: (event, value) => bus.emit(event, value),
     },
     pdfViewer: { currentPageNumber: options.page || 1 },
+    goToPage(page) {
+      this.pdfViewer.currentPageNumber = page;
+    },
     getSelectedText: () => "selection",
     whenReady: () => Promise.resolve(),
     onDidLoad: (callback) => subscribe(events, "load", callback),

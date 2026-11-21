@@ -1,6 +1,7 @@
 // Small, structurally complete documents for tests that exercise the real parser.
 function createPdf({
-  pages = 1,
+  pageSizes = [],
+  pages = pageSizes.length || 1,
   outline = [],
   rotation = 0,
   prefix = "",
@@ -18,13 +19,14 @@ function createPdf({
     : [];
   for (let index = 0; index < pages; index++) {
     const parent = groupRefs.length ? groupRefs[Math.floor(index / pageTreeGroupSize)] : 2;
+    const [width, height] = pageSizes[index] ?? [612, 792];
     const contents = `BT /F1 14 Tf 72 720 Td ${literal(`PDF integration page ${index + 1}`)} Tj ET${" ".repeat(pagePadding)}`;
     const stream = add(
       `<< /Length ${Buffer.byteLength(contents)} >>\nstream\n${contents}\nendstream`,
     );
     pageRefs.push(
       add(
-        `<< /Type /Page /Parent ${parent} 0 R /MediaBox [0 0 612 792] /Rotate ${rotation} /Resources << /Font << /F1 3 0 R >> >> /Contents ${stream} 0 R >>`,
+        `<< /Type /Page /Parent ${parent} 0 R /MediaBox [0 0 ${width} ${height}] /Rotate ${rotation} /Resources << /Font << /F1 3 0 R >> >> /Contents ${stream} 0 R >>`,
       ),
     );
   }

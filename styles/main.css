@@ -16,6 +16,11 @@
   background-color: var(--app-background-color);
 }
 
+.pdf-view .pdfViewer {
+  width: max-content;
+  min-width: 100%;
+}
+
 .pdf-view .pdfViewer .page {
   --page-bg-color: white;
   transition: filter 200ms ease-in-out;

@@ -10,6 +10,7 @@ Built on Mozilla's PDF.js with native controls, document search and outline navi
 
 - **Native controls**: compact viewing controls follow the active theme, with smooth panning and a themed preview background.
 - **Zoom**: fits width up to 100%, offers preset levels in the zoom value's context menu and animates zoom changes smoothly.
+- **Mixed page sizes**: all pages share a horizontal centerline, with page navigation and vertical scrolling bringing offscreen sheets into view.
 - **PDF.js components**: renders selectable text, links and existing annotations without an iframe or the generic viewer application.
 - **Navigation**: supplies bookmarks and current-section information to the navigation panel.
 - **Search**: supplies read-only document search to the search panel.
