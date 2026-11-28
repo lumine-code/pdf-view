@@ -155,6 +155,56 @@ describe("PDF scrolling", () => {
     expect(viewer.zoomMode).toBe("auto-width");
   });
 
+  it("leaves adaptive zoom only when middle-button autoscroll moves the PDF horizontally", async () => {
+    viewer.element.style.height = "1000px";
+    await viewer.goToPage(2);
+    await viewer.setScale("page-height");
+    await frames();
+    const { viewport } = viewer;
+    const { scale } = viewer.getViewState();
+    const left = viewport.scrollLeft;
+    expect(viewport.scrollWidth - viewport.clientWidth - left).toBeGreaterThan(30);
+
+    const bounds = viewport.getBoundingClientRect();
+    const origin = { clientX: bounds.left + bounds.width / 2, clientY: bounds.top + 100 };
+    const pointer = (target, type, properties) => {
+      const event = new PointerEvent(type, {
+        ...origin,
+        bubbles: true,
+        cancelable: true,
+        pointerType: "mouse",
+        pointerId: 4,
+        isPrimary: true,
+        ...properties,
+      });
+      target.dispatchEvent(event);
+      return event;
+    };
+    expect(pointer(viewport, "pointerdown", { button: 1, buttons: 4 }).defaultPrevented).toBe(
+      false,
+    );
+    pointer(viewport, "pointerup", { button: 1, buttons: 0 });
+    expect(viewer.getViewState().scaleValue).toBe("page-height");
+
+    // Synthetic pointers cannot start Chromium's autoscroll. Supply the
+    // native offset changes after moving the pointer beyond the viewer.
+    const outside = viewport.ownerDocument.body;
+    pointer(outside, "pointermove", { clientY: origin.clientY + 90 });
+    viewport.scrollTop = viewer.pdfViewer.getPageView(2).div.offsetTop;
+    await conditionPromise(() => viewer.getCurrentPage() === 3);
+    expect(viewer.getViewState().scaleValue).toBe("page-height");
+    expect(viewport.scrollLeft).toBe(left);
+
+    pointer(outside, "pointermove", { clientX: bounds.right + 40 });
+    expect(viewer.getViewState().scaleValue).toBe("page-height");
+    const { scrollTop } = viewport;
+    viewport.scrollLeft += 30;
+    await conditionPromise(() => viewer.getViewState().scaleValue === String(scale));
+    expect(viewer.pdfViewer.currentScale).toBe(scale);
+    expect(viewport.scrollLeft).toBe(left + 30);
+    expect(viewport.scrollTop).toBe(scrollTop);
+  });
+
   it("stops old scrolling for manual input, zoom, explicit navigation and destruction", async () => {
     viewer.viewport.scrollTop = 200;
     viewer.executeCommand("scroll-down");
