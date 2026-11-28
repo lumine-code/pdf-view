@@ -563,6 +563,8 @@ describe("PDF viewing controls", () => {
     const commands = rows.map((row) => row.command).filter(Boolean);
     expect(rows.find((row) => row.command === "pdf-view:copy").label).toBe("Copy Text");
     expect(commands).toContain("pdf-view:synctex");
+    expect(commands).not.toContain("pdf-view:fit-width");
+    expect(commands).not.toContain("pdf-view:fit-to-view");
     expect(commands).toContain("pane:split-right-and-copy-active-item");
     expect(commands.filter((command) => command === "pane:close").length).toBe(1);
     expect(commands.at(-1)).toBe("pane:close");

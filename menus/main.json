@@ -307,18 +307,6 @@
           ]
         },
         {
-          "label": "Fit Width",
-          "command": "pdf-view:fit-width",
-          "group": "display",
-          "order": 10
-        },
-        {
-          "label": "Fit to View",
-          "command": "pdf-view:fit-to-view",
-          "group": "display",
-          "order": 20
-        },
-        {
           "label": "Rotate Clockwise",
           "command": "pdf-view:rotate-clockwise",
           "group": "display",
