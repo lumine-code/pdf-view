@@ -417,8 +417,10 @@ describe("PDF adaptive width zoom", () => {
       viewer.element.style.height = "510px";
       await waitForPreset(viewer, preset, 7);
 
-      viewer.viewport.scrollTop = 0;
-      await waitForPreset(viewer, preset, 1);
+      const second = viewer.pdfViewer.getPageView(1).div;
+      viewer.viewport.scrollTop =
+        second.offsetTop + second.offsetHeight / 2 - viewer.viewport.clientHeight / 2;
+      await waitForPreset(viewer, preset, 2);
     });
   }
 
@@ -451,7 +453,7 @@ describe("PDF adaptive width zoom", () => {
     });
   }
 
-  it("fits a short page at the top when scrolling back from a larger sheet", async () => {
+  it("keeps the PDF point under the reading line when scrolling across a short sheet", async () => {
     const viewer = await open(620, 350, {
       pageSizes: [
         [612, 792],
@@ -460,13 +462,43 @@ describe("PDF adaptive width zoom", () => {
       ],
     });
     await viewer.goToPage(2);
-    await viewer.goToPage(3);
+    await viewer.executeCommand("last-page");
     await waitForPreset(viewer, "auto-width", 3);
-    viewer.viewport.scrollTop = viewer.pdfViewer.getPageView(1).div.offsetTop + 8;
-    await waitForPreset(viewer, "auto-width", 2);
+    await twoFrames();
 
-    viewer.viewport.scrollTop = viewer.pdfViewer.getPageView(2).div.offsetTop + 8;
-    await waitForPreset(viewer, "auto-width", 3);
+    const { viewport } = viewer;
+    const shortPage = viewer.pdfViewer.getPageView(1).div;
+    const lastPage = viewer.pdfViewer.getPageView(2).div;
+    const readingLine = () => viewport.getBoundingClientRect().top + viewport.clientHeight / 2;
+    const moveReadingLineTo = (y) => (viewport.scrollTop += y - readingLine());
+
+    const scrollIntoGap = async (pageNumber) => {
+      const { scale } = viewer.getViewState();
+      const gap =
+        (shortPage.getBoundingClientRect().bottom + lastPage.getBoundingClientRect().top) / 2;
+      moveReadingLineTo(gap);
+      await twoFrames();
+      expect(viewer.getCurrentPage()).toBe(pageNumber);
+      expect(viewer.getViewState().scale).toBe(scale);
+      expect(readingLine()).toBeGreaterThan(shortPage.getBoundingClientRect().bottom);
+      expect(readingLine()).toBeLessThan(lastPage.getBoundingClientRect().top);
+    };
+
+    const scrollIntoPage = async (pageNumber, y) => {
+      const { scale } = viewer.getViewState();
+      moveReadingLineTo(y);
+      const pdfY = () =>
+        pdfPoint(viewer, viewportCenterX(viewport), readingLine(), pageNumber - 1)[1];
+      const beforeFit = pdfY();
+      await waitForPreset(viewer, "auto-width", pageNumber);
+      expect(viewer.getViewState().scale).not.toBe(scale);
+      expect(Math.abs(pdfY() - beforeFit)).toBeLessThan(2);
+    };
+
+    await scrollIntoGap(3);
+    await scrollIntoPage(2, shortPage.getBoundingClientRect().bottom - 16);
+    await scrollIntoGap(2);
+    await scrollIntoPage(3, lastPage.getBoundingClientRect().top + 16);
   });
 
   it("reveals the entire active sheet when fitting from a clipped view", async () => {
