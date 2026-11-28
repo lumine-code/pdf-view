@@ -27,10 +27,10 @@ describe("PDF viewing controls", () => {
     fs.rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
-  async function open(pages = 8) {
+  async function open(pages = 8, pageSizes, state) {
     const file = path.join(directory, "document.pdf");
-    fs.writeFileSync(file, createPdf({ pages }));
-    viewer = main.createViewer(file);
+    fs.writeFileSync(file, createPdf({ pages, pageSizes }));
+    viewer = main.createViewer(file, "", state);
     viewer.element.style.cssText = "position:absolute;width:1000px;height:800px;top:0;left:0";
     await lumine.workspace.open(viewer);
     await viewer.whenReady();
@@ -54,9 +54,9 @@ describe("PDF viewing controls", () => {
     return event;
   }
 
-  function openZoomMenu() {
+  function openZoomMenu(target = viewer.toolbar.scaleField) {
     const event = new MouseEvent("contextmenu", { button: 2, bubbles: true, cancelable: true });
-    viewer.toolbar.scaleButton.dispatchEvent(event);
+    target.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
   }
 
@@ -99,6 +99,186 @@ describe("PDF viewing controls", () => {
     expect(document.activeElement).toBe(viewer.viewport);
   });
 
+  it("selects the zoom percentage on left-click and commits valid percentages with Enter", async () => {
+    setMotion(true);
+    await open(3);
+    viewer.setScale(1);
+    viewer.focus();
+    const { scaleField, scaleInput } = viewer.toolbar;
+    scaleField.click();
+    expect(document.activeElement).toBe(scaleInput);
+    expect(scaleInput.selectionStart).toBe(0);
+    expect(scaleInput.selectionEnd).toBe(scaleInput.value.length);
+    expect(viewer.pdfViewer.currentScale).toBe(1);
+    expect(viewer.zoomMode).toBeNull();
+
+    const modifier = process.platform === "darwin" ? { cmd: true } : { ctrl: true };
+    expect(keymapEvent(scaleInput, "0").defaultPrevented).toBe(false);
+    expect(keymapEvent(scaleInput, "left").defaultPrevented).toBe(false);
+    expect(keymapEvent(scaleInput, "c", modifier).defaultPrevented).toBe(false);
+    expect(viewer.pdfViewer.currentScale).toBe(1);
+
+    for (const [entered, scale, displayed] of [
+      ["125", 1.25, "125%"],
+      ["87.5%", 0.875, "88%"],
+      ["123,4%", 1.234, "123%"],
+    ]) {
+      scaleInput.focus();
+      scaleInput.value = entered;
+      expect(inputKey(scaleInput, "Enter").defaultPrevented).toBe(true);
+      expect(viewer.pdfViewer.currentScale).toBeCloseTo(scale, 8);
+      expect(scaleInput.value).toBe(displayed);
+      expect(document.activeElement).toBe(viewer.viewport);
+    }
+
+    viewer.setScale(1.23456);
+    expect(scaleInput.value).toBe("123%");
+    scaleInput.focus();
+    expect(inputKey(scaleInput, "Enter").defaultPrevented).toBe(true);
+    expect(viewer.pdfViewer.currentScale).toBe(1.23456);
+    expect(document.activeElement).toBe(viewer.viewport);
+
+    viewer.element.style.width = "701px";
+    for (const preset of ["auto-width", "page-width", "page-fit", "page-height"]) {
+      await viewer.setScale(preset);
+      const { scale, scaleValue } = viewer.getViewState();
+      expect(scaleValue).toBe(preset);
+      expect(Number.parseFloat(scaleInput.value) / 100).not.toBeCloseTo(scale, 8);
+
+      scaleField.click();
+      expect(document.activeElement).toBe(scaleInput);
+      expect(inputKey(scaleInput, "Enter").defaultPrevented).toBe(true);
+      expect(viewer.getViewState().scaleValue).toBe(String(scale));
+      expect(viewer.pdfViewer.currentScale).toBe(scale);
+      expect(document.activeElement).toBe(viewer.viewport);
+    }
+  });
+
+  it("cancels zoom edits on Escape or blur and rejects invalid zoom percentages", async () => {
+    setMotion(true);
+    await open(3);
+    viewer.setScale(1.25);
+    const { scaleInput } = viewer.toolbar;
+    for (const entered of ["125% extra", "1001%", "0%", ""]) {
+      scaleInput.focus();
+      scaleInput.value = entered;
+      expect(inputKey(scaleInput, "Enter").defaultPrevented).toBe(true);
+      expect(viewer.pdfViewer.currentScale).toBe(1.25);
+      expect(scaleInput.value).toBe("125%");
+      expect(document.activeElement).toBe(viewer.viewport);
+    }
+
+    scaleInput.focus();
+    scaleInput.value = "200";
+    expect(inputKey(scaleInput, "Escape").defaultPrevented).toBe(true);
+    expect(scaleInput.value).toBe("125%");
+    expect(document.activeElement).toBe(viewer.viewport);
+
+    const outside = document.createElement("input");
+    jasmine.attachToDOM(outside);
+    scaleInput.focus();
+    scaleInput.value = "200";
+    viewer.setScale(1.5);
+    expect(scaleInput.value).toBe("200");
+    outside.focus();
+    expect(viewer.pdfViewer.currentScale).toBe(1.5);
+    expect(scaleInput.value).toBe("150%");
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it("uses middle-click on the zoom field and its input to activate automatic zoom", async () => {
+    setMotion(true);
+    await open(3);
+    const { scaleField, scaleInput } = viewer.toolbar;
+    for (const [target, type] of [
+      [scaleField, "auxclick"],
+      [scaleInput, "click"],
+    ]) {
+      viewer.setScale(1.5);
+      const down = new MouseEvent("mousedown", { button: 1, bubbles: true, cancelable: true });
+      target.dispatchEvent(down);
+      expect(down.defaultPrevented).toBe(true);
+
+      const click = new MouseEvent(type, { button: 1, bubbles: true, cancelable: true });
+      target.dispatchEvent(click);
+      expect(click.defaultPrevented).toBe(true);
+      expect(viewer.zoomMode).toBe("auto-width");
+      expect(scaleInput.value).toBe("100%");
+      expect(document.activeElement).toBe(viewer.viewport);
+    }
+  });
+
+  it("centers the PDF when middle-click enables Auto and ignores repeated activation", async () => {
+    setMotion(true);
+    await open(3, [
+      [1000, 792],
+      [612, 792],
+      [612, 792],
+    ]);
+    viewer.element.style.width = "701px";
+    viewer.setScale(1.5);
+    await viewer.goToPage(2);
+    const { viewport } = viewer;
+    const page = viewer.pdfViewer.getPageView(1);
+    const horizontalOffset = () => {
+      const { left, width } = page.div.getBoundingClientRect();
+      const center =
+        viewport.getBoundingClientRect().left + viewport.clientLeft + viewport.clientWidth / 2;
+      return left + width / 2 - center;
+    };
+    viewport.scrollTop =
+      page.div.offsetTop + page.div.offsetHeight * 0.85 - viewport.clientHeight / 2;
+    viewport.scrollLeft += horizontalOffset() + 80;
+    viewer.pdfViewer.update();
+    expect(Math.abs(horizontalOffset())).toBeGreaterThan(70);
+
+    const pdfYAtMidpoint = () => {
+      const { top, height } = page.div.getBoundingClientRect();
+      const midpoint =
+        viewport.getBoundingClientRect().top + viewport.clientTop + viewport.clientHeight / 2;
+      return page.viewport.convertToPdfPoint(
+        0,
+        ((midpoint - top) * page.viewport.height) / height,
+      )[1];
+    };
+    const pdfY = pdfYAtMidpoint();
+
+    const middleClick = () =>
+      viewer.toolbar.scaleInput.dispatchEvent(
+        new MouseEvent("auxclick", { button: 1, bubbles: true, cancelable: true }),
+      );
+    middleClick();
+    await conditionPromise(
+      () => viewer.zoomMode === "auto-width" && viewer.pdfViewer.currentScale < 1,
+      "automatic width fitting from the zoom field",
+    );
+    expect(Math.abs(horizontalOffset())).toBeLessThan(1);
+    expect(Math.abs(pdfYAtMidpoint() - pdfY)).toBeLessThan(2);
+
+    const { scale } = viewer.getViewState();
+    viewer.setScale(scale);
+    viewport.scrollLeft += horizontalOffset() + 80;
+    expect(Math.abs(horizontalOffset())).toBeGreaterThan(70);
+    const { scrollTop } = viewport;
+    middleClick();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(viewer.getViewState().zoomMode).toBe("auto-width");
+    expect(viewer.pdfViewer.currentScale).toBe(scale);
+    expect(Math.abs(horizontalOffset())).toBeLessThan(1);
+    expect(viewport.scrollTop).toBe(scrollTop);
+
+    const scrollLeft = viewport.scrollLeft;
+    const zoom = spyOn(viewer.zoomAnimation, "to").and.callThrough();
+    const scroll = spyOn(viewer.scrollAnimation, "by").and.callThrough();
+    middleClick();
+    expect(viewer.zoomMode).toBe("auto-width");
+    expect(viewer.pdfViewer.currentScale).toBe(scale);
+    expect(viewport.scrollLeft).toBe(scrollLeft);
+    expect(viewport.scrollTop).toBe(scrollTop);
+    expect(zoom).not.toHaveBeenCalled();
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
   it("uses the image-editor keyboard conventions on the PDF surface", async () => {
     await open(3);
     viewer.focus();
@@ -125,37 +305,37 @@ describe("PDF viewing controls", () => {
 
   it("uses a for automatic zoom and distinct theme backgrounds for adaptive modes", async () => {
     await open(3);
-    const button = viewer.toolbar.scaleButton;
-    button.style.setProperty("--ui-site-color-2", "rgb(20, 180, 50)");
-    button.style.setProperty("--ui-site-color-3", "rgb(220, 120, 10)");
+    const field = viewer.toolbar.scaleField;
+    field.style.setProperty("--ui-site-color-2", "rgb(20, 180, 50)");
+    field.style.setProperty("--ui-site-color-3", "rgb(220, 120, 10)");
     viewer.element.style.setProperty("--button-background-color", "rgb(230, 230, 230)");
     viewer.setScale(1.25);
-    const manual = getComputedStyle(button).backgroundColor;
-    expect(button.classList.contains("selected")).toBe(false);
+    const manual = getComputedStyle(field).backgroundColor;
+    expect(field.classList.contains("selected")).toBe(false);
     keymapEvent(viewer.viewport, "a");
     await conditionPromise(() => viewer.zoomMode === "auto-width" && !viewer.zoomAnimation.active);
-    expect(button.classList.contains("selected")).toBe(true);
-    expect(button.dataset.zoomMode).toBe("auto-width");
+    expect(field.classList.contains("selected")).toBe(true);
+    expect(field.dataset.zoomMode).toBe("auto-width");
     keymapEvent(viewer.viewport, "f");
     await conditionPromise(
       () => viewer.getViewState().scaleValue === "page-fit" && !viewer.zoomAnimation.active,
     );
-    const fit = getComputedStyle(button).backgroundColor;
-    expect(button.dataset.zoomMode).toBe("page-fit");
-    expect(button.classList.contains("selected")).toBe(false);
+    const fit = getComputedStyle(field).backgroundColor;
+    expect(field.dataset.zoomMode).toBe("page-fit");
+    expect(field.classList.contains("selected")).toBe(false);
     keymapEvent(viewer.viewport, "w");
     await conditionPromise(
       () => viewer.getViewState().scaleValue === "page-width" && !viewer.zoomAnimation.active,
     );
-    const width = getComputedStyle(button).backgroundColor;
-    expect(button.dataset.zoomMode).toBe("page-width");
+    const width = getComputedStyle(field).backgroundColor;
+    expect(field.dataset.zoomMode).toBe("page-width");
     expect(fit).not.toBe(width);
     expect(fit).not.toBe(manual);
     expect(width).not.toBe(manual);
     keymapEvent(viewer.viewport, "0");
     await conditionPromise(() => viewer.pdfViewer.currentScaleValue === "1");
-    expect(getComputedStyle(button).backgroundColor).toBe(manual);
-    expect(button.classList.contains("selected")).toBe(false);
+    expect(getComputedStyle(field).backgroundColor).toBe(manual);
+    expect(field.classList.contains("selected")).toBe(false);
   });
 
   it("pans real page content with the hand tool and zooms only on modified wheel events", async () => {
@@ -216,7 +396,7 @@ describe("PDF viewing controls", () => {
     expect(viewer.getViewState().tool).toBe("select");
   });
 
-  it("zooms smoothly with the wheel over the scale button without scrolling or taking focus", async () => {
+  it("zooms smoothly with the wheel over the zoom field without scrolling or taking focus", async () => {
     setMotion(false);
     await open(3);
     viewer.setScale(1);
@@ -224,16 +404,17 @@ describe("PDF viewing controls", () => {
     const outside = document.createElement("input");
     jasmine.attachToDOM(outside);
     outside.focus();
-    const bubbled = jasmine.createSpy("wheel outside the scale button");
+    const bubbled = jasmine.createSpy("wheel outside the zoom field");
     viewer.element.addEventListener("wheel", bubbled);
-    const wheel = (deltaY, options = {}) => {
+    const { scaleField, scaleInput } = viewer.toolbar;
+    const wheel = (deltaY, options = {}, target = scaleField) => {
       const event = new WheelEvent("wheel", {
         bubbles: true,
         cancelable: true,
         deltaY,
         ...options,
       });
-      viewer.toolbar.scaleButton.dispatchEvent(event);
+      target.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(true);
       expect(document.activeElement).toBe(outside);
       return viewer.zoomAnimation.promise;
@@ -243,7 +424,7 @@ describe("PDF viewing controls", () => {
     expect(viewer.zoomAnimation.active).toBe(true);
     const firstTarget = viewer.zoomAnimation.targetScale;
     expect(firstTarget).toBeGreaterThan(1);
-    wheel(-100, { ctrlKey: true });
+    wheel(-100, { ctrlKey: true }, scaleInput);
     expect(viewer.zoomAnimation.targetScale).toBeGreaterThan(firstTarget);
     wheel(100, { altKey: true });
     await wheel(100, { metaKey: true });
@@ -254,10 +435,10 @@ describe("PDF viewing controls", () => {
     viewer.element.removeEventListener("wheel", bubbled);
   });
 
-  it("accepts fine, line and page wheel input on the scale button and releases its listener", async () => {
+  it("accepts fine, line and page wheel input on the zoom field and releases its listener", async () => {
     setMotion(false);
     await open(1);
-    const button = viewer.toolbar.scaleButton;
+    const field = viewer.toolbar.scaleField;
     const wheel = (deltaY, deltaMode = 0) => {
       const event = new WheelEvent("wheel", {
         bubbles: true,
@@ -265,7 +446,7 @@ describe("PDF viewing controls", () => {
         deltaY,
         deltaMode,
       });
-      button.dispatchEvent(event);
+      field.dispatchEvent(event);
       return event;
     };
     viewer.setScale(1);
@@ -306,15 +487,15 @@ describe("PDF viewing controls", () => {
     const outside = document.createElement("input");
     jasmine.attachToDOM(outside);
     outside.focus();
-    const bubbled = jasmine.createSpy("wheel outside the scale button");
+    const bubbled = jasmine.createSpy("wheel outside the zoom field");
     viewer.element.addEventListener("wheel", bubbled);
     const wheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -100 });
-    viewer.toolbar.scaleButton.dispatchEvent(wheel);
+    viewer.toolbar.scaleField.dispatchEvent(wheel);
     expect(wheel.defaultPrevented).toBe(true);
     expect(bubbled).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(outside);
     expect(viewer.pdfViewer.currentScale).toBeCloseTo(Math.exp(0.2), 8);
-    expect(viewer.toolbar.scaleButton.textContent).toBe("122%");
+    expect(viewer.toolbar.scaleInput.value).toBe("122%");
     expect(viewer.zoomAnimation.active).toBe(false);
     expect(viewer.zoomAnimation.frame).toBeNull();
     expect(viewer.zoomAnimation.targetScale).toBeNull();
@@ -329,7 +510,7 @@ describe("PDF viewing controls", () => {
     const modifier = process.platform === "darwin" ? { cmd: true } : { ctrl: true };
     keymapEvent(viewer.viewport, "+", modifier);
     expect(viewer.pdfViewer.currentScale).toBe(1.25);
-    expect(viewer.toolbar.scaleButton.textContent).toBe("125%");
+    expect(viewer.toolbar.scaleInput.value).toBe("125%");
     expect(viewer.zoomAnimation.active).toBe(false);
     expect(viewer.zoomAnimation.frame).toBeNull();
     expect(document.activeElement).toBe(viewer.viewport);
@@ -444,13 +625,14 @@ describe("PDF viewing controls", () => {
     }
   });
 
-  it("uses the native button font for the current page, total and zoom label", async () => {
+  it("uses the native button font for the page and zoom fields", async () => {
     await open(3);
     const elements = [
       viewer.toolbar.pageInput.closest(".btn"),
       viewer.toolbar.pageInput,
       viewer.toolbar.pageCount,
-      viewer.toolbar.scaleButton,
+      viewer.toolbar.scaleField,
+      viewer.toolbar.scaleInput,
     ];
     viewer.element.style.fontFamily = "var(--ui-font-family)";
     for (const [family, size, height] of [
@@ -546,21 +728,21 @@ describe("PDF viewing controls", () => {
     }
   });
 
-  it("updates the zoom number immediately without animating the label", async () => {
+  it("updates the zoom number immediately without animating the field text", async () => {
     await open(3);
     viewer.setScale(1.23456);
-    expect(viewer.toolbar.scaleButton.textContent).toBe("123%");
+    expect(viewer.toolbar.scaleInput.value).toBe("123%");
     expect(viewer.pdfViewer.currentScale).toBe(1.23456);
     viewer.setScale(1);
     viewer.toolbar.buttons.get("zoom-in").click();
-    expect(viewer.toolbar.scaleButton.textContent).toBe("110%");
+    expect(viewer.toolbar.scaleInput.value).toBe("110%");
     await new Promise((resolve) => requestAnimationFrame(resolve));
     await new Promise((resolve) => requestAnimationFrame(resolve));
-    expect(viewer.toolbar.scaleButton.textContent).toBe("110%");
+    expect(viewer.toolbar.scaleInput.value).toBe("110%");
     await viewer.zoomAnimation.promise;
-    expect(viewer.toolbar.scaleButton.textContent).toBe("110%");
+    expect(viewer.toolbar.scaleInput.value).toBe("110%");
     viewer.toolbar.buttons.get("zoom-out").click();
-    expect(viewer.toolbar.scaleButton.textContent).toBe("100%");
+    expect(viewer.toolbar.scaleInput.value).toBe("100%");
     await viewer.zoomAnimation.promise;
   });
 
@@ -583,7 +765,7 @@ describe("PDF viewing controls", () => {
     expect(viewer.zoomAnimation.targetScale).toBe(1.5);
     keymapEvent(viewer.viewport, "-", modifier);
     expect(viewer.zoomAnimation.targetScale).toBe(1.25);
-    expect(viewer.toolbar.scaleButton.textContent).toBe("125%");
+    expect(viewer.toolbar.scaleInput.value).toBe("125%");
     await run.calls.mostRecent().returnValue;
 
     viewer.setScale(0.73);
@@ -606,8 +788,7 @@ describe("PDF viewing controls", () => {
     viewer.setScale(1);
     const bubbled = jasmine.createSpy("document context menu");
     viewer.element.addEventListener("contextmenu", bubbled);
-    for (const [action, button] of viewer.toolbar.buttons) {
-      if (action === "automatic-zoom") continue;
+    for (const button of viewer.toolbar.buttons.values()) {
       const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 });
       button.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(true);
@@ -638,7 +819,7 @@ describe("PDF viewing controls", () => {
 
   for (const key of ["a", "f", "w", "0", "+", "-"]) {
     it(`keeps document focus when ${key} rebuilds a focused PDF text layer`, async () => {
-      await open(3);
+      await open(3, undefined, { scaleValue: 1.25 });
       const run = spyOn(main, "run").and.callThrough();
       await conditionPromise(
         () => viewer.pagesElement.querySelector(".textLayer span"),
@@ -666,9 +847,9 @@ describe("PDF viewing controls", () => {
   it("uses the shared menu to choose a preset and restores PDF focus", async () => {
     await open(3);
     viewer.setScale(1.25);
-    openZoomMenu();
+    openZoomMenu(viewer.toolbar.scaleInput);
     expect(viewer.pdfViewer.currentScale).toBe(1.25);
-    expect(viewer.toolbar.scaleButton.getAttribute("aria-expanded")).toBe("true");
+    expect(viewer.toolbar.scaleInput.getAttribute("aria-expanded")).toBe("true");
     const menu = viewer.toolbar.zoomMenu;
     expect(menu.element.classList.contains("pdf-view-zoom-menu")).toBe(true);
     const rows = [...menu.element.querySelectorAll('[role="menuitemradio"]')];
@@ -698,7 +879,7 @@ describe("PDF viewing controls", () => {
     expect(viewer.pdfViewer.currentScale).toBe(1.5);
     expect(viewer.getViewState().zoomMode).not.toBe("auto-width");
     expect(viewer.toolbar.zoomMenu).toBeNull();
-    expect(viewer.toolbar.scaleButton.getAttribute("aria-expanded")).toBe("false");
+    expect(viewer.toolbar.scaleInput.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(viewer.viewport);
     openZoomMenu();
     const hundred = [

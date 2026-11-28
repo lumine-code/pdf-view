@@ -342,6 +342,7 @@ describe("PDF adaptive width zoom", () => {
 
     setMotion(viewer);
     viewer.setScale(1);
+    await viewer.goToPage(8);
     const animating = viewer.setScale("page-width", { smooth: true });
     await twoFrames();
     expect(viewer.zoomAnimation.active).toBe(true);
@@ -501,31 +502,88 @@ describe("PDF adaptive width zoom", () => {
     await scrollIntoPage(3, lastPage.getBoundingClientRect().top + 16);
   });
 
-  it("reveals the entire active sheet when fitting from a clipped view", async () => {
+  it("centers the sheet horizontally and preserves the vertical reading point when fitting", async () => {
     const viewer = await open(620, 350, {
       pageSizes: [
-        [2400, 400],
+        [1750, 300],
         [612, 792],
         [612, 792],
       ],
     });
-    viewer.setScale(2);
+    setMotion(viewer, true);
+    viewer.setScale(1.25);
     await viewer.goToPage(2);
     const { viewport } = viewer;
     const page = viewer.pdfViewer.getPageView(1).div;
-    viewport.scrollTop += 400;
-    viewport.scrollLeft += 120;
+    await conditionPromise(() => page.querySelector("canvas"), "page canvas before fitting");
+    viewport.scrollTop = page.offsetTop + 200;
+    viewport.scrollLeft = page.offsetLeft + (page.offsetWidth - viewport.clientWidth) / 2 + 120;
     viewer.pdfViewer.update();
     expect(viewer.getCurrentPage()).toBe(2);
 
+    const offsetX = () => centerX(page.getBoundingClientRect()) - viewportCenterX(viewport);
+    const midpointPdfY = () =>
+      pdfPoint(
+        viewer,
+        viewportCenterX(viewport),
+        viewport.getBoundingClientRect().top + viewport.clientTop + viewport.clientHeight / 2,
+        1,
+      )[1];
+    const beforeY = midpointPdfY();
     await viewer.executeCommand("fit-to-view");
     await waitForPreset(viewer, "page-fit", 2);
-    const { left, top, right, bottom } = page.getBoundingClientRect();
-    const bounds = viewport.getBoundingClientRect();
-    expect(left).toBeGreaterThanOrEqual(bounds.left - 1);
-    expect(right).toBeLessThanOrEqual(bounds.left + viewport.clientWidth + 1);
-    expect(top).toBeGreaterThanOrEqual(bounds.top - 1);
-    expect(bottom).toBeLessThanOrEqual(bounds.top + viewport.clientHeight + 1);
+    await twoFrames();
+    const { scale } = viewer.getViewState();
+    const pixelsPerPoint = (scale * 96) / 72;
+    expect(Math.abs(offsetX())).toBeLessThan(1);
+    expect(Math.abs(midpointPdfY() - beforeY) * pixelsPerPoint).toBeLessThan(1.5);
+
+    const { scrollLeft, scrollTop } = viewport;
+    const zoom = spyOn(viewer.zoomAnimation, "to").and.callThrough();
+    const scroll = spyOn(viewer.scrollAnimation, "by").and.callThrough();
+    await viewer.executeCommand("fit-to-view");
+    await twoFrames();
+    expect(viewer.getViewState().scaleValue).toBe("page-fit");
+    expect(viewer.pdfViewer.currentScale).toBe(scale);
+    expect(viewport.scrollLeft).toBe(scrollLeft);
+    expect(viewport.scrollTop).toBe(scrollTop);
+    expect(zoom).not.toHaveBeenCalled();
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it("leaves each adaptive preset when arrow keys move the PDF horizontally", async () => {
+    const viewer = await open(620, 350, {
+      pageSizes: [
+        [1750, 300],
+        [612, 792],
+        [612, 792],
+      ],
+    });
+    setMotion(viewer, true);
+    const { viewport } = viewer;
+    await viewer.goToPage(2);
+    viewer.focus();
+
+    for (const [preset, key, direction] of [
+      ["auto-width", "right", 1],
+      ["page-width", "left", -1],
+      ["page-fit", "right", 1],
+      ["page-height", "left", -1],
+    ]) {
+      await viewer.setScale(preset);
+      await waitForPreset(viewer, preset, 2);
+      await viewer.setScale(preset);
+      await twoFrames();
+      const { scale } = viewer.getViewState();
+      const { scrollLeft, scrollTop } = viewport;
+      const event = lumine.keymaps.constructor.buildKeydownEvent(key, { target: viewport });
+      lumine.keymaps.handleKeyboardEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      await conditionPromise(() => (viewport.scrollLeft - scrollLeft) * direction > 1);
+      expect(viewer.getViewState().scaleValue).toBe(String(scale));
+      expect(viewer.pdfViewer.currentScale).toBe(scale);
+      expect(viewport.scrollTop).toBe(scrollTop);
+    }
   });
 
   for (const [action, supersede] of [
@@ -538,7 +596,7 @@ describe("PDF adaptive width zoom", () => {
       const viewer = await open(650, 500, { pageSizes });
       const obsoletePage = await viewer.pdfDocument.getPage(1);
       const { geometry, release } = holdUnvisitedGeometry(viewer, 8);
-      const pending = viewer.executeCommand("automatic-zoom");
+      const pending = viewer.setAutoWidth({ smooth: true });
       expect(geometry).toHaveBeenCalledWith(8);
       geometry.and.callThrough();
 

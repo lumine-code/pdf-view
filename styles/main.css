@@ -135,6 +135,7 @@
 
 .pdf-view .pdf-view-controls .pdf-view-zoom-value {
   min-width: 5em;
+  justify-content: center;
 }
 
 .pdf-view .pdf-view-controls .pdf-view-zoom-value[data-zoom-mode="page-fit"] {
@@ -172,13 +173,13 @@
   cursor: default;
 }
 
-.pdf-view .pdf-view-page-field {
+.pdf-view :is(.pdf-view-page-field, .pdf-view-zoom-value) {
   display: flex;
   align-items: center;
   gap: 0.35em;
 }
 
-.pdf-view .pdf-view-page-input {
+.pdf-view :is(.pdf-view-page-input, .pdf-view-zoom-input) {
   min-width: 2ch;
   padding: 0;
   border: none;
@@ -186,6 +187,10 @@
   background: transparent;
   font: inherit;
   text-align: center;
+}
+
+.pdf-view .pdf-view-zoom-input {
+  width: 5.5ch;
 }
 
 .pdf-view .pdf-view-page-input::-webkit-inner-spin-button,
